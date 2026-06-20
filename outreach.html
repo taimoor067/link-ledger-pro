@@ -1,0 +1,3010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outreach Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1c2029;
+    --border: #2a2f3a;
+    --text: #e6e8eb;
+    --text-dim: #9aa1ad;
+    --accent: #4f8cff;
+    --accent-dim: #2c4a85;
+    --good: #3ecf8e;
+    --warn: #e0a23b;
+    --bad: #e0563b;
+    --radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body {
+    padding: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes rowSlideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(79,140,255,0); }
+    50%       { box-shadow: 0 0 0 4px rgba(79,140,255,0.2); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  .header-block {
+    animation: fadeInDown 0.45s ease both;
+  }
+
+  .top-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    animation: fadeInDown 0.4s ease both;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .top-nav a {
+    text-decoration: none;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+  }
+
+  .top-nav a:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .top-nav a.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .auth-strip {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+
+  .auth-strip .role-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  .auth-strip .role-badge.admin {
+    color: var(--warn);
+    border-color: #6b521f;
+  }
+
+  .auth-strip button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: border-color 0.18s ease, color 0.18s ease;
+  }
+
+  .auth-strip button:hover {
+    color: var(--bad);
+    border-color: var(--bad);
+  }
+
+  .owner-cell {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin: 0 0 20px 0;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    animation: fadeInUp 0.4s ease both;
+    transition: border-color 0.2s ease;
+  }
+
+  .panel:hover {
+    border-color: #3a3f4a;
+  }
+
+  .panel h2 {
+    font-size: 15px;
+    margin: 0 0 12px 0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .panel h2 .count {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 400;
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+
+  /* DASHBOARD */
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: fadeInUp 0.35s ease both;
+  }
+
+  @media (max-width: 800px) {
+    .dashboard { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .dash-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.2s ease, box-shadow 0.15s ease;
+    cursor: default;
+  }
+
+  .dash-card:hover { border-color: #3a3f4a; }
+
+  /* Clickable today card */
+  .dash-card.today {
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .dash-card.today:hover {
+    border-color: var(--bad);
+    box-shadow: 0 0 0 3px rgba(224,86,59,0.1);
+  }
+  .dash-card.today.active-filter {
+    border-color: var(--bad);
+    background: rgba(224,86,59,0.07);
+    box-shadow: 0 0 0 3px rgba(224,86,59,0.12);
+  }
+
+  .dash-card .dash-value {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .dash-card .dash-label {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .dash-card.today .dash-value { color: var(--bad); }
+  .dash-card.waiting .dash-value { color: var(--warn); }
+  .dash-card.replied .dash-value { color: var(--good); }
+  .dash-card.closed .dash-value { color: var(--text-dim); }
+
+  /* FORM */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  @media (max-width: 800px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .form-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 17px; }
+    .toolbar { flex-direction: column; }
+    .toolbar input[type="text"],
+    .toolbar select { width: 100%; min-width: unset; }
+    .footer-actions { flex-direction: column; }
+    .footer-actions button { width: 100%; text-align: center; }
+    .row-actions { flex-wrap: wrap; }
+    .top-nav { flex-direction: column; }
+    .top-nav a { text-align: center; }
+    .auth-strip { margin-left: 0; width: 100%; justify-content: center; flex-wrap: wrap; }
+  }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,140,255,0.12);
+  }
+
+  textarea { resize: vertical; min-height: 60px; }
+
+  .followup-preview {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .followup-preview .fu-chip {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .followup-preview .fu-chip strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .form-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+  }
+
+  button:hover { border-color: var(--accent); }
+  button:active { transform: scale(0.97); }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  button.primary:hover { background: #3d77e0; }
+
+  button.success {
+    background: var(--good);
+    border-color: var(--good);
+    color: #07150f;
+  }
+
+  button.success:hover { background: #34b87d; }
+
+  button.danger { color: var(--bad); }
+  button.danger:hover { border-color: var(--bad); background: rgba(224,86,59,0.08); }
+
+  button.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-dim);
+    padding: 4px 8px;
+  }
+
+  button.ghost:hover { color: var(--text); border-color: var(--border); }
+
+  button.small {
+    padding: 4px 9px;
+    font-size: 12px;
+  }
+
+  /* Mark-sent buttons */
+  button.mark-sent {
+    background: transparent;
+    border: 1px solid #1f5c43;
+    color: var(--good);
+    padding: 3px 8px;
+    font-size: 11px;
+    border-radius: 5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  button.mark-sent:hover {
+    background: rgba(62,207,142,0.1);
+    border-color: var(--good);
+  }
+  button.mark-sent:active { transform: scale(0.96); }
+
+  /* BULK ADD */
+  .bulk-toggle {
+    font-size: 12px;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .bulk-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+  .bulk-panel {
+    border-top: 1px solid var(--border);
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+
+  .bulk-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin: 0 0 8px 0;
+    line-height: 1.6;
+  }
+
+  .bulk-hint code {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11px;
+    color: var(--text);
+    font-family: monospace;
+  }
+
+  #bulkInput {
+    min-height: 100px;
+    font-family: monospace;
+    font-size: 12.5px;
+    resize: vertical;
+  }
+
+  .bulk-result {
+    margin-top: 10px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .bulk-result .br-line { color: var(--text-dim); }
+  .bulk-result .br-ok   { color: var(--good); }
+  .bulk-result .br-skip { color: var(--warn); }
+  .bulk-result .br-err  { color: var(--bad); }
+
+  .bulk-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+    animation: fadeInDown 0.4s ease 0.1s both;
+  }
+
+  .toolbar input[type="text"] {
+    flex: 1;
+    min-width: 160px;
+  }
+
+  .toolbar select { width: auto; min-width: 160px; }
+
+  /* Today's queue banner */
+  .queue-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(224,86,59,0.08);
+    border: 1px solid rgba(224,86,59,0.3);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--bad);
+    font-weight: 500;
+    animation: fadeInDown 0.25s ease both;
+  }
+
+  .queue-banner .queue-count {
+    background: var(--bad);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 100px;
+    margin-right: 2px;
+  }
+
+  .queue-banner button {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid rgba(224,86,59,0.4);
+    color: var(--bad);
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 5px;
+  }
+
+  .queue-banner button:hover {
+    background: rgba(224,86,59,0.12);
+    border-color: var(--bad);
+  }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 500;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tbody tr {
+    animation: rowSlideIn 0.25s ease both;
+    transition: background 0.15s ease;
+  }
+
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  /* Highlight rows due today in queue mode */
+  tbody tr.due-today-row {
+    background: rgba(224,86,59,0.04);
+  }
+  tbody tr.due-today-row:hover {
+    background: rgba(224,86,59,0.07);
+  }
+
+  td.name-cell { font-weight: 500; }
+
+  .contact-cell { display: flex; flex-direction: column; gap: 2px; }
+  .contact-cell .contact-email { color: var(--text-dim); font-size: 12px; }
+
+  .fu-dates-cell { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-dim); }
+  .fu-dates-cell .fu-row { display: flex; gap: 6px; align-items: center; }
+  .fu-dates-cell .fu-row.sent { color: var(--good); }
+  .fu-dates-cell .fu-row.due-today { color: var(--bad); font-weight: 600; }
+  .fu-dates-cell .fu-row.overdue { color: var(--bad); }
+
+  /* Mark-sent button group inside fu-dates-cell */
+  .fu-sent-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .pill.status-not_contacted { color: var(--text-dim); }
+  .pill.status-contacted { color: var(--accent); border-color: var(--accent-dim); }
+  .pill.status-fu1_due { color: var(--warn); border-color: #6b521f; }
+  .pill.status-fu2_due { color: var(--warn); border-color: #6b521f; }
+  .pill.status-fu3_due { color: var(--bad); border-color: #6b3a2f; }
+  .pill.status-replied { color: var(--good); border-color: #1f5c43; }
+  .pill.status-closed { color: var(--text-dim); border-color: var(--border); }
+
+  /* ---------------------------------------------------------------------
+     MOBILE CARD VIEW FOR THE RECORDS TABLE -- COLLAPSED BY DEFAULT
+     Below 800px, each row renders as a compact card showing only
+     Website + Status + a due-today badge. Tapping the row (or its ▾
+     toggle) expands it to reveal Contact/First Email/Follow-ups/Notes/
+     action buttons. Desktop (>800px) is completely unaffected -- the
+     full table with all columns always visible, exactly as before.
+
+     Implementation: each <tr> gets a "mobile-summary-cell" (the first
+     <td>, holding website + status + badge + toggle button, built in
+     renderRecordsTable()) and the remaining <td>s are wrapped in a
+     ".mobile-details" group that's hidden by default and revealed via
+     the "expanded" class, which JS toggles on click.
+  --------------------------------------------------------------------- */
+  @media (max-width: 800px) {
+    .table-wrap { overflow-x: visible; }
+
+    .records-table thead { display: none; }
+
+    .records-table, .records-table tbody, .records-table tr, .records-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .records-table {
+      border-collapse: separate;
+    }
+
+    .records-table tr {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .records-table tr.due-today-row {
+      border-color: rgba(224,86,59,0.4);
+    }
+
+    .records-table td {
+      padding: 0;
+      border-bottom: none;
+    }
+
+    /* Hide every cell except the summary cell by default on mobile */
+    .records-table td.mobile-detail-cell {
+      display: none;
+    }
+
+    .records-table tr.expanded td.mobile-detail-cell {
+      display: block;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .records-table tr.expanded td.mobile-detail-cell:last-child {
+      border-bottom: none;
+      padding-top: 10px;
+      padding-bottom: 12px;
+    }
+
+    .records-table td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+
+    .records-table .row-actions {
+      justify-content: flex-start;
+    }
+
+    .records-table .row-actions button {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .records-table .owner-col {
+      display: none !important;
+    }
+
+    /* Summary cell: always visible, tappable to expand/collapse */
+    .mobile-summary-cell {
+      display: flex !important;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    .mobile-summary-cell .mobile-summary-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mobile-summary-cell .mobile-summary-website {
+      font-size: 15px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mobile-summary-cell .mobile-summary-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mobile-due-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #fff;
+      background: var(--bad);
+      padding: 2px 7px;
+      border-radius: 100px;
+    }
+
+    .mobile-expand-toggle {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px 6px;
+      transition: transform 0.18s ease;
+      flex-shrink: 0;
+    }
+
+    tr.expanded .mobile-expand-toggle {
+      transform: rotate(180deg);
+    }
+  }
+
+  /* Desktop: the mobile-only summary cell and detail-cell wrapper classes
+     should never affect layout above 800px -- the existing table styling
+     (already defined elsewhere) continues to apply untouched. */
+  .mobile-summary-cell { display: none; }
+  .mobile-expand-toggle { display: none; }
+
+  .notes-cell {
+    max-width: 220px;
+    color: var(--text-dim);
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .row-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 24px;
+    font-size: 13px;
+    animation: fadeIn 0.3s ease both;
+  }
+
+  .footer-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .hidden { display: none !important; }
+
+  #importFileInput { display: none; }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--good);
+    color: #07150f;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 100;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+    animation: fadeIn 0.15s ease both;
+  }
+
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    animation: fadeInUp 0.2s ease both;
+  }
+
+  .modal-box h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+  }
+
+  .modal-box .modal-sub {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin: 0 0 16px 0;
+  }
+
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label { display: block; margin-bottom: 4px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  .modal-box.wide { max-width: 520px; }
+
+  .modal-box.scrollable { max-height: 85vh; overflow-y: auto; }
+
+  .email-preview-box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 4px;
+  }
+
+  .email-preview-box .preview-subject {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .email-preview-box .preview-body {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .no-email-warning {
+    font-size: 12px;
+    color: var(--warn);
+    margin-top: 8px;
+  }
+
+  .mobile-sender-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* TEMPLATE MANAGER */
+  .template-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  .template-row .tpl-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .template-row .tpl-label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .template-row .tpl-subject {
+    font-size: 12px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 360px;
+  }
+
+  .template-row .tpl-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    border-radius: 100px;
+    padding: 1px 7px;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .template-list-section {
+    margin-bottom: 16px;
+  }
+
+  .template-list-heading {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 8px 0;
+  }
+
+  .template-empty-hint {
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 4px 0 8px;
+  }
+
+  .template-form-divider {
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  .template-placeholder-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 0 0 14px 0;
+    line-height: 1.6;
+  }
+
+  .template-placeholder-hint code {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11px;
+    color: var(--text);
+    font-family: monospace;
+  }
+
+  /* FOOTER */
+  .site-footer {
+    margin-top: auto;
+    padding: 24px 0 12px;
+    text-align: center;
+    animation: fadeIn 0.6s ease 0.4s both;
+  }
+
+  .site-footer .footer-inner {
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .site-footer .footer-brand {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .site-footer .footer-brand span {
+    color: var(--accent);
+  }
+
+  .site-footer .footer-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+
+  .footer-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin: 0 6px;
+    vertical-align: middle;
+    opacity: 0.6;
+  }
+
+  @media (max-width: 700px) {
+    body { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a href="index.html">Inventory</a>
+  <a href="outreach.html" class="active">Outreach</a>
+  <div class="auth-strip" id="authStrip"></div>
+</nav>
+
+<div class="header-block">
+  <h1>Outreach Tracker</h1>
+  <p class="subtitle">Track outreach emails, follow-ups, and replies — synced to your Supabase account.</p>
+</div>
+
+<div id="mainContent" class="hidden">
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+  <div class="dash-card today" id="dashTodayCard" title="Click to show only today's follow-ups">
+    <div class="dash-value" id="dashToday">0</div>
+    <div class="dash-label">Need Follow-up Today</div>
+  </div>
+  <div class="dash-card waiting">
+    <div class="dash-value" id="dashWaiting">0</div>
+    <div class="dash-label">Waiting For Reply</div>
+  </div>
+  <div class="dash-card replied">
+    <div class="dash-value" id="dashReplied">0</div>
+    <div class="dash-label">Replied</div>
+  </div>
+  <div class="dash-card closed">
+    <div class="dash-value" id="dashClosed">0</div>
+    <div class="dash-label">Closed</div>
+  </div>
+</div>
+
+<!-- ADD / EDIT FORM -->
+<div class="panel">
+  <h2 id="formTitle">Add Outreach Record</h2>
+  <form id="outreachForm">
+    <div class="form-grid">
+      <div class="field">
+        <label for="f_website">Website</label>
+        <input type="text" id="f_website" placeholder="example.com" required>
+      </div>
+      <div class="field">
+        <label for="f_contact">Contact</label>
+        <input type="text" id="f_contact" placeholder="Contact name (optional)">
+      </div>
+      <div class="field">
+        <label for="f_email">Email</label>
+        <input type="email" id="f_email" placeholder="name@example.com">
+      </div>
+      <div class="field">
+        <label for="f_status">Status</label>
+        <select id="f_status">
+          <option value="not_contacted">Not Contacted</option>
+          <option value="contacted">Contacted</option>
+          <option value="fu1_due">Follow-up 1 Due</option>
+          <option value="fu2_due">Follow-up 2 Due</option>
+          <option value="fu3_due">Follow-up 3 Due</option>
+          <option value="replied">Replied</option>
+          <option value="closed">Closed</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="f_firstEmailDate">First Email Date</label>
+        <input type="date" id="f_firstEmailDate">
+      </div>
+      <div class="field">
+        <label for="f_fu1Sent">Follow-up 1 Sent</label>
+        <input type="date" id="f_fu1Sent">
+      </div>
+      <div class="field">
+        <label for="f_fu2Sent">Follow-up 2 Sent</label>
+        <input type="date" id="f_fu2Sent">
+      </div>
+      <div class="field">
+        <label for="f_fu3Sent">Follow-up 3 Sent</label>
+        <input type="date" id="f_fu3Sent">
+      </div>
+
+      <div class="field full">
+        <label for="f_notes">Notes</label>
+        <textarea id="f_notes" placeholder="Any context, reply summary, pricing discussed, etc."></textarea>
+      </div>
+
+      <div class="followup-preview" id="followupPreview"></div>
+
+      <div class="form-actions">
+        <button type="submit" class="primary" id="submitBtn">Add Record</button>
+        <button type="button" id="cancelEditBtn" class="hidden">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- BULK ADD PANEL -->
+<div class="panel" id="bulkAddPanel">
+  <h2>
+    Bulk Add Sites
+    <button type="button" class="bulk-toggle" id="bulkToggleBtn">Show</button>
+  </h2>
+  <div id="bulkAddBody" class="hidden bulk-panel">
+    <p class="bulk-hint">
+      Paste one site per line. Supported formats:<br>
+      <code>site.com</code> &nbsp;·&nbsp;
+      <code>site.com, email@site.com</code> &nbsp;·&nbsp;
+      <code>site.com, Contact Name, email@site.com</code><br>
+      Duplicates already in your tracker are silently skipped.
+    </p>
+    <textarea id="bulkInput" placeholder="site1.com, contact@site1.com&#10;site2.com, John, john@site2.com&#10;site3.com"></textarea>
+    <div class="bulk-result hidden" id="bulkResult"></div>
+    <div class="bulk-actions">
+      <button type="button" class="primary" id="bulkAddBtn">Add All</button>
+      <button type="button" id="bulkClearBtn">Clear</button>
+      <span id="bulkStatus" style="font-size:12px;color:var(--text-dim);"></span>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL TEMPLATES PANEL -->
+<div class="panel">
+  <h2>
+    Email Templates
+    <button type="button" class="bulk-toggle" id="manageTemplatesBtn">Manage Templates</button>
+  </h2>
+  <p class="subtitle" style="margin:0;" id="templatesSubtitle">Add your own custom templates here — they show up in the Send Email dropdown, and are saved on this browser only.</p>
+</div>
+
+<!-- SENDER ACCOUNTS PANEL -->
+<div class="panel">
+  <h2>
+    Sender Accounts <span class="count" id="senderCount">0</span>
+    <button type="button" class="bulk-toggle" id="manageSendersBtn">Manage Senders</button>
+  </h2>
+  <p class="subtitle" style="margin:0;">Your own Gmail addresses for the "Send from" option when emailing outreach contacts (up to 5). Saved on this browser only — no one else can see your list.</p>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="Search website, contact, email, or notes...">
+  <select id="filterStatus">
+    <option value="all">All statuses</option>
+    <option value="not_contacted">Not Contacted</option>
+    <option value="contacted">Contacted</option>
+    <option value="fu1_due">Follow-up 1 Due</option>
+    <option value="fu2_due">Follow-up 2 Due</option>
+    <option value="fu3_due">Follow-up 3 Due</option>
+    <option value="replied">Replied</option>
+    <option value="closed">Closed</option>
+  </select>
+</div>
+
+<!-- RECORDS TABLE -->
+<div class="panel">
+  <h2>
+    <span id="tableHeading">Outreach Records</span>
+    <span style="display:flex;align-items:center;gap:8px;">
+      <span class="count" id="recordCount">0</span>
+    </span>
+  </h2>
+  <!-- Today's queue banner (shown only when queue filter is active) -->
+  <div id="queueBanner" class="queue-banner hidden">
+    <span class="queue-count" id="queueBannerCount">0</span>
+    <span>records need a follow-up today — work through them top to bottom</span>
+    <button type="button" id="queueBannerClear">Show all</button>
+  </div>
+  <div class="table-wrap">
+    <table class="records-table">
+      <thead>
+        <tr>
+          <th>Website</th>
+          <th>Contact</th>
+          <th>First Email</th>
+          <th>Follow-ups</th>
+          <th>Status</th>
+          <th>Notes</th>
+          <th class="owner-col hidden">Owner</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="recordsTableBody"></tbody>
+    </table>
+    <div id="recordsEmpty" class="empty-state hidden">No outreach records match the current filters.</div>
+  </div>
+</div>
+
+<!-- IMPORT / EXPORT -->
+<div class="panel">
+  <h2>Data</h2>
+  <div class="footer-actions">
+    <button id="exportBtn">Export JSON</button>
+    <button id="importBtn">Import JSON</button>
+    <input type="file" id="importFileInput" accept="application/json">
+    <button id="clearAllBtn" class="danger">Clear All Data</button>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">Designed by <span>Taimoor</span></div>
+    <div class="footer-sub">Outreach Tracker<span class="footer-dot"></span>Synced via Supabase</div>
+  </div>
+</footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MOVE TO INVENTORY MODAL -->
+<div class="modal-backdrop hidden" id="moveModalBackdrop">
+  <div class="modal-box">
+    <h3 id="moveModalTitle">Move to Inventory</h3>
+    <p class="modal-sub">This will add the site directly into your Inventory database. You won't need to retype the name.</p>
+    <form id="moveModalForm">
+      <div class="modal-field">
+        <label for="m_basePrice">Base price</label>
+        <input type="number" id="m_basePrice" min="0" step="1" placeholder="0" required>
+      </div>
+      <div class="modal-field">
+        <label for="m_clientPrice">Client price</label>
+        <input type="number" id="m_clientPrice" min="0" step="1" placeholder="0" required>
+      </div>
+      <div class="modal-field">
+        <label for="m_type">Type</label>
+        <select id="m_type">
+          <option value="paid">paid</option>
+          <option value="exchange">exchange</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label for="m_linkType">Link type</label>
+        <select id="m_linkType">
+          <option value="guest_post">guest_post</option>
+          <option value="link_insertion">link_insertion</option>
+          <option value="both">both</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="moveModalCancel">Cancel</button>
+        <button type="submit" class="success">Add to Inventory</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SEND EMAIL MODAL -->
+<div class="modal-backdrop hidden" id="emailModalBackdrop">
+  <div class="modal-box wide">
+    <h3 id="emailModalTitle">Send Email</h3>
+    <p class="modal-sub" id="emailModalSub">Pick a template and sender, then open it in Gmail prefilled.</p>
+
+    <div class="modal-field hidden" id="noEmailWarningField">
+      <p class="no-email-warning" id="noEmailWarningText"></p>
+    </div>
+
+    <div class="modal-field">
+      <label for="e_template">Template</label>
+      <select id="e_template"></select>
+    </div>
+
+    <div class="modal-field" id="e_senderField">
+      <label for="e_sender">Send from</label>
+      <select id="e_sender"></select>
+      <p class="mobile-sender-note hidden" id="mobileSenderNote">On mobile this will open your mail app's compose screen using whichever account is currently active there — the account picked above only applies on desktop.</p>
+    </div>
+
+    <div class="modal-field">
+      <label>Preview</label>
+      <div class="email-preview-box">
+        <div class="preview-subject" id="e_previewSubject"></div>
+        <div class="preview-body" id="e_previewBody"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" id="emailModalCancel">Cancel</button>
+      <button type="button" class="primary" id="emailModalOpenGmail">Open in Gmail</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE TEMPLATES MODAL -->
+<div class="modal-backdrop hidden" id="templatesModalBackdrop">
+  <div class="modal-box wide scrollable">
+    <h3>Manage Email Templates</h3>
+    <p class="modal-sub">Built-in templates can't be edited or deleted here. Custom templates you add below are saved on this browser only, and show up in the Send Email dropdown right alongside the built-ins.</p>
+
+    <div class="template-list-section">
+      <p class="template-list-heading">Built-in (always available, read-only)</p>
+      <div id="builtinTemplatesListWrap"></div>
+    </div>
+
+    <div class="template-list-section">
+      <p class="template-list-heading">Your custom templates</p>
+      <div id="customTemplatesListWrap"></div>
+    </div>
+
+    <div class="template-form-divider"></div>
+
+    <form id="templateAddForm">
+      <p class="template-list-heading">Add a new custom template</p>
+      <p class="template-placeholder-hint">
+        Use <code>{{website}}</code> to insert the site's domain, and <code>{{contact}}</code> to insert the contact's name (falls back to "there" if no contact name is set). These are the only two placeholders that work — exact spelling, double curly braces, lowercase.
+      </p>
+      <div class="modal-field">
+        <label for="t_label">Label</label>
+        <input type="text" id="t_label" placeholder="e.g. Casino Niche Outreach" required>
+      </div>
+      <div class="modal-field">
+        <label for="t_subject">Subject</label>
+        <input type="text" id="t_subject" placeholder="Use {{website}} and {{contact}} if needed" required>
+      </div>
+      <div class="modal-field">
+        <label for="t_body">Body</label>
+        <textarea id="t_body" rows="6" placeholder="Use {{website}} and {{contact}} if needed" required></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="templatesModalClose">Close</button>
+        <button type="submit" class="primary">Add Template</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MANAGE SENDERS MODAL -->
+<div class="modal-backdrop hidden" id="sendersModalBackdrop">
+  <div class="modal-box wide">
+    <h3>Manage Sender Accounts</h3>
+    <p class="modal-sub">These are your own Gmail addresses, used for the "Send from" option. Only you can see this list — it's saved on this browser only. Maximum 5.</p>
+
+    <div class="modal-field" id="sendersListWrap"></div>
+
+    <form id="senderAddForm">
+      <div class="modal-field">
+        <label for="s_label">Label</label>
+        <input type="text" id="s_label" placeholder="e.g. Main, Outreach, Work" required>
+      </div>
+      <div class="modal-field">
+        <label for="s_email">Gmail address</label>
+        <input type="email" id="s_email" placeholder="you@gmail.com" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="sendersModalClose">Close</button>
+        <button type="submit" class="primary" id="senderAddSubmitBtn">Add Sender</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Supabase project credentials ----
+  var SUPABASE_URL = "https://lenzwhtqsdpnvuipkydb.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_cvIbPuf0om5EWFBeDqolmQ_b8rtLvkT";
+
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var OUTREACH_TABLE = "outreach";
+  var SITES_TABLE = "sites";
+
+  var FOLLOWUP_OFFSETS = { fu1: 4, fu2: 11, fu3: 18 };
+
+  var STATUS_LABELS = {
+    not_contacted: "Not Contacted",
+    contacted: "Contacted",
+    fu1_due: "Follow-up 1 Due",
+    fu2_due: "Follow-up 2 Due",
+    fu3_due: "Follow-up 3 Due",
+    replied: "Replied",
+    closed: "Closed"
+  };
+
+  var FIRST_OUTREACH_TEMPLATES = [
+    {
+      id: "first_collab_inquiry",
+      label: "Collaboration Inquiry",
+      subject: "Collaboration Inquiry: Guest Post & Content Partnership with {{website}}",
+      body:
+        "Hi,\n\n" +
+        "I'm Taimoor, an SEO Outreach Specialist working with SaaS and marketing clients. I've been following your content it's genuinely insightful and data-driven.\n\n" +
+        "We're exploring paid collaboration opportunities with {{website}}. Could you please share:\n\n" +
+        "Your charges for guest posts\n" +
+        "Your charges for link insertions\n" +
+        "Your editorial guidelines\n\n" +
+        "We always align with publisher standards and focus on value-first content for long-term partnerships.\n\n" +
+        "Looking forward to your response.\n\n" +
+        "Best regards,\n" +
+        "Taimoor"
+    },
+    {
+      id: "first_editorial_collab",
+      label: "Editorial Collaboration",
+      subject: "Editorial collaboration with {{website}}",
+      body:
+        "Hi {{contact}},\n\n" +
+        "I will get straight to the point.\n\n" +
+        "We are actively looking to collaborate with quality publishers in the SaaS space. Do you accommodate contributed articles or contextual placements within existing content?\n\n" +
+        "If yes, your rates and guidelines would be a great starting point.\n\n" +
+        "Taimoor"
+    },
+    {
+      id: "first_quick_question",
+      label: "Quick Question",
+      subject: "Quick question — {{website}}",
+      body:
+        "Hi {{contact}},\n\n" +
+        "One quick question.\n\n" +
+        "Do you accept guest posts or allow additions to existing articles on {{website}}?\n\n" +
+        "If yes, what are your rates and requirements?\n\n" +
+        "Taimoor"
+    },
+    {
+      id: "first_advertising_inquiry",
+      label: "Advertising Inquiry",
+      subject: "Advertising Inquiry",
+      body:
+        "Hi there,\n\n" +
+        "I hope you're well. I am reaching out to you in hopes for a collaboration on your site.\n\n" +
+        "I recently came across your website and found it quite resourceful.\n\n" +
+        "I would like to ask if you would be willing to add a do-follow link to the article on a suitable page. We have a great number of tips and resources that your readers can benefit from.\n\n" +
+        "Let me know if you entertain such requests and what your requirements are..\n\n" +
+        "We are looking forward to working with you!\n\n" +
+        "Best,\n" +
+        "Taimoor"
+    },
+    {
+      id: "first_editorial_opportunity",
+      label: "Editorial Opportunity",
+      subject: "editorial opportunity — {{website}}",
+      body:
+        "Hi {{contact}},\n\n" +
+        "Straight to it. We are actively sourcing quality SaaS sites for content collaborations.\n\n" +
+        "Does {{website}} accept guest articles or placements within existing content? If yes, your rates and any guidelines would be a great next step.\n\n" +
+        "Looking forward to hearing from you.\n\n" +
+        "Taimoor"
+    }
+  ];
+
+  var FOLLOWUP_TEMPLATE = {
+    id: "followup_general",
+    label: "Follow-up",
+    body:
+      "Hi again,\n\n" +
+      "I wanted to follow up on my last email about the opportunity for link placements in your content.\n\n" +
+      "Let me know if you have any questions or need more details. I would be happy to help.\n\n" +
+      "Looking forward to your response"
+  };
+
+  /* ---------- SENDER ACCOUNTS (localStorage, per-browser, max 5) ---------- */
+  // No emails are hardcoded anywhere in this file. Each user (member or
+  // admin) adds their own Gmail addresses via the "Manage Senders" panel,
+  // capped at 5 per browser. Nothing here is visible to other users --
+  // it's stored entirely in this browser's localStorage.
+
+  var SENDER_ACCOUNTS_KEY = "lbim_sender_accounts_v1";
+  var SENDER_ACCOUNTS_MAX = 5;
+  var senderAccounts = []; // populated at init, shape: [{ id, label, email }]
+
+  function loadSenderAccounts() {
+    try {
+      var raw = localStorage.getItem(SENDER_ACCOUNTS_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(function (s) {
+        return s && typeof s.id === "string" && typeof s.label === "string" && typeof s.email === "string";
+      });
+    } catch (e) {
+      console.error("Failed to load sender accounts from localStorage", e);
+      return [];
+    }
+  }
+
+  function saveSenderAccounts() {
+    try {
+      localStorage.setItem(SENDER_ACCOUNTS_KEY, JSON.stringify(senderAccounts));
+    } catch (e) {
+      console.error("Failed to save sender accounts to localStorage", e);
+      showToast("Could not save sender — local storage may be full or disabled");
+    }
+  }
+
+  function genSenderId() {
+    return "sender_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  /* ---------- CUSTOM EMAIL TEMPLATES (localStorage, per-browser) ---------- */
+  // Built-in 5 + the follow-up template above stay hardcoded and are never
+  // editable or deletable from the UI. Custom templates added here are
+  // stored in this browser's localStorage only -- they are NOT synced to
+  // Supabase, so they won't follow you to a different device or browser,
+  // and other users of this app (even other accounts on the same Supabase
+  // project) will not see templates you add unless they're using the same
+  // browser profile. Each custom template always has both a subject and a
+  // body, and is treated exactly like a first-outreach template -- it
+  // shows up in the same dropdown slot as the 5 built-ins above.
+
+  var CUSTOM_TEMPLATES_KEY = "lbim_custom_templates_v1";
+  var customTemplates = []; // populated at init from localStorage, shape: [{ id, label, subject, body }]
+
+  function loadCustomTemplates() {
+    try {
+      var raw = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(function (t) {
+        return t && typeof t.id === "string" && typeof t.label === "string" &&
+          typeof t.subject === "string" && typeof t.body === "string";
+      });
+    } catch (e) {
+      console.error("Failed to load custom templates from localStorage", e);
+      return [];
+    }
+  }
+
+  function saveCustomTemplates() {
+    try {
+      localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customTemplates));
+    } catch (e) {
+      console.error("Failed to save custom templates to localStorage", e);
+      showToast("Could not save template — local storage may be full or disabled");
+    }
+  }
+
+  function genTemplateId() {
+    return "custom_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  /* ---------- DB row <-> app object mapping ---------- */
+
+  function rowToRecord(row) {
+    return {
+      id: row.id,
+      website: row.website,
+      contact: row.contact || "",
+      email: row.email || "",
+      firstEmailDate: row.first_email_date || "",
+      fu1Sent: row.fu1_sent || "",
+      fu2Sent: row.fu2_sent || "",
+      fu3Sent: row.fu3_sent || "",
+      status: row.status,
+      notes: row.notes || "",
+      firstEmailSubject: row.first_email_subject || "",
+      firstEmailSender: row.first_email_sender || "",
+      userId: row.user_id,
+      ownerEmail: row._ownerEmail || null
+    };
+  }
+
+  function recordToInsertRow(record) {
+    return {
+      website: record.website,
+      contact: record.contact || "",
+      email: record.email || "",
+      first_email_date: record.firstEmailDate || null,
+      fu1_sent: record.fu1Sent || null,
+      fu2_sent: record.fu2Sent || null,
+      fu3_sent: record.fu3Sent || null,
+      status: record.status,
+      notes: record.notes || "",
+      user_id: currentUser.id
+    };
+  }
+
+  function recordToUpdateRow(record) {
+    return {
+      website: record.website,
+      contact: record.contact || "",
+      email: record.email || "",
+      first_email_date: record.firstEmailDate || null,
+      fu1_sent: record.fu1Sent || null,
+      fu2_sent: record.fu2Sent || null,
+      fu3_sent: record.fu3Sent || null,
+      status: record.status,
+      notes: record.notes || ""
+    };
+  }
+
+  /* ---------- STORAGE ---------- */
+
+  async function loadRecords() {
+    var result = await supabaseClient.from(OUTREACH_TABLE).select("*").order("created_at", { ascending: true });
+    if (result.error) {
+      console.error("Failed to load outreach records from Supabase", result.error);
+      showToast("Failed to load outreach records: " + result.error.message);
+      return [];
+    }
+    var rows = result.data || [];
+
+    if (isAdmin && rows.length > 0) {
+      var ownerIds = Array.from(new Set(rows.map(function (r) { return r.user_id; })));
+      var profilesResult = await supabaseClient.from("profiles").select("id,email").in("id", ownerIds);
+      var emailById = {};
+      if (!profilesResult.error && profilesResult.data) {
+        profilesResult.data.forEach(function (p) { emailById[p.id] = p.email; });
+      }
+      rows.forEach(function (r) { r._ownerEmail = emailById[r.user_id] || r.user_id; });
+    }
+
+    return rows.map(rowToRecord);
+  }
+
+  async function loadInventorySites() {
+    var result = await supabaseClient.from(SITES_TABLE).select("*").eq("user_id", currentUser.id);
+    if (result.error) {
+      console.error("Failed to load inventory sites from Supabase", result.error);
+      return [];
+    }
+    return result.data || [];
+  }
+
+  /* ---------- STATE ---------- */
+
+  var state = {
+    records: [],
+    editingId: null,
+    moveContextId: null,
+    queueFilterActive: false
+  };
+
+  var currentUser = null;
+  var currentProfile = null;
+  var isAdmin = false;
+
+  /* ---------- UTIL ---------- */
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function showToast(msg) {
+    var toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () {
+      toast.classList.remove("show");
+    }, 1800);
+  }
+
+  function normalizeSiteName(raw) {
+    var s = String(raw || "").trim().toLowerCase();
+    s = s.replace(/^https?:\/\//, "");
+    s = s.replace(/^www\./, "");
+    s = s.replace(/\/+$/, "");
+    return s;
+  }
+
+  function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+  }
+
+  function fillTemplate(text, record) {
+    var contactName = record.contact && record.contact.trim() ? record.contact.trim() : "there";
+    return String(text)
+      .replace(/\{\{website\}\}/g, record.website)
+      .replace(/\{\{contact\}\}/g, contactName);
+  }
+
+  function buildGmailComposeUrl(toEmail, subject, body, authuser) {
+    var params = new URLSearchParams();
+    params.set("view", "cm");
+    params.set("fs", "1");
+    if (toEmail) params.set("to", toEmail);
+    params.set("su", subject);
+    params.set("body", body);
+    var base = "https://mail.google.com/mail/?" + params.toString();
+    if (authuser !== undefined && authuser !== null && authuser !== "") {
+      base += "&authuser=" + encodeURIComponent(authuser);
+    }
+    return base;
+  }
+
+  function buildMailtoUrl(toEmail, subject, body) {
+    var query = "subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+    return "mailto:" + (toEmail || "") + "?" + query;
+  }
+
+  function parseDateOnly(str) {
+    if (!str) return null;
+    var parts = str.split("-");
+    if (parts.length !== 3) return null;
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (isNaN(d.getTime())) return null;
+    return d;
+  }
+
+  function formatDateOnly(d) {
+    if (!d) return "";
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function addDays(d, days) {
+    var copy = new Date(d.getTime());
+    copy.setDate(copy.getDate() + days);
+    return copy;
+  }
+
+  function todayDateOnly() {
+    var now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+
+  function todayString() {
+    return formatDateOnly(todayDateOnly());
+  }
+
+  function formatDisplayDate(isoStr) {
+    var d = parseDateOnly(isoStr);
+    if (!d) return "—";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  /* ---------- FOLLOW-UP DATE CALCULATION ---------- */
+
+  function computeFollowupDueDates(firstEmailDateStr) {
+    var base = parseDateOnly(firstEmailDateStr);
+    if (!base) return { fu1: null, fu2: null, fu3: null };
+    return {
+      fu1: addDays(base, FOLLOWUP_OFFSETS.fu1),
+      fu2: addDays(base, FOLLOWUP_OFFSETS.fu2),
+      fu3: addDays(base, FOLLOWUP_OFFSETS.fu3)
+    };
+  }
+
+  /* ---------- DATA MODEL ---------- */
+
+  function buildRecordObject(id, website, contact, email, firstEmailDate, fu1Sent, fu2Sent, fu3Sent, status, notes) {
+    return {
+      id: id,
+      website: website,
+      contact: contact,
+      email: email,
+      firstEmailDate: firstEmailDate || "",
+      fu1Sent: fu1Sent || "",
+      fu2Sent: fu2Sent || "",
+      fu3Sent: fu3Sent || "",
+      status: status,
+      notes: notes || ""
+    };
+  }
+
+  /* ---------- FORM: FOLLOW-UP PREVIEW ---------- */
+
+  function renderFollowupPreview() {
+    var wrap = document.getElementById("followupPreview");
+    var firstEmailDate = document.getElementById("f_firstEmailDate").value;
+    if (!firstEmailDate) {
+      wrap.innerHTML = "";
+      return;
+    }
+    var due = computeFollowupDueDates(firstEmailDate);
+    wrap.innerHTML =
+      '<span class="fu-chip">Follow-up 1 Due: <strong>' + escapeHtml(formatDateOnly(due.fu1)) + '</strong> (+' + FOLLOWUP_OFFSETS.fu1 + 'd)</span>' +
+      '<span class="fu-chip">Follow-up 2 Due: <strong>' + escapeHtml(formatDateOnly(due.fu2)) + '</strong> (+' + FOLLOWUP_OFFSETS.fu2 + 'd)</span>' +
+      '<span class="fu-chip">Follow-up 3 Due: <strong>' + escapeHtml(formatDateOnly(due.fu3)) + '</strong> (+' + FOLLOWUP_OFFSETS.fu3 + 'd)</span>';
+  }
+
+  document.getElementById("f_firstEmailDate").addEventListener("input", renderFollowupPreview);
+
+  /* ---------- FORM: ADD / EDIT SUBMIT ---------- */
+
+  function resetForm() {
+    state.editingId = null;
+    document.getElementById("outreachForm").reset();
+    document.getElementById("formTitle").textContent = "Add Outreach Record";
+    document.getElementById("submitBtn").textContent = "Add Record";
+    document.getElementById("cancelEditBtn").classList.add("hidden");
+    renderFollowupPreview();
+  }
+
+  function enterEditMode(record) {
+    state.editingId = record.id;
+    document.getElementById("f_website").value = record.website;
+    document.getElementById("f_contact").value = record.contact || "";
+    document.getElementById("f_email").value = record.email || "";
+    document.getElementById("f_status").value = record.status;
+    document.getElementById("f_firstEmailDate").value = record.firstEmailDate || "";
+    document.getElementById("f_fu1Sent").value = record.fu1Sent || "";
+    document.getElementById("f_fu2Sent").value = record.fu2Sent || "";
+    document.getElementById("f_fu3Sent").value = record.fu3Sent || "";
+    document.getElementById("f_notes").value = record.notes || "";
+    document.getElementById("formTitle").textContent = "Edit Record: " + record.website;
+    document.getElementById("submitBtn").textContent = "Save Changes";
+    document.getElementById("cancelEditBtn").classList.remove("hidden");
+    renderFollowupPreview();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  document.getElementById("cancelEditBtn").addEventListener("click", resetForm);
+
+  document.getElementById("outreachForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    var website = document.getElementById("f_website").value.trim();
+    var contact = document.getElementById("f_contact").value.trim();
+    var email = document.getElementById("f_email").value.trim();
+    var status = document.getElementById("f_status").value;
+    var firstEmailDate = document.getElementById("f_firstEmailDate").value;
+    var fu1Sent = document.getElementById("f_fu1Sent").value;
+    var fu2Sent = document.getElementById("f_fu2Sent").value;
+    var fu3Sent = document.getElementById("f_fu3Sent").value;
+    var notes = document.getElementById("f_notes").value.trim();
+
+    if (!website) { showToast("Website is required"); return; }
+
+    var normalizedWebsite = normalizeSiteName(website);
+
+    var dup = state.records.some(function (r) {
+      return normalizeSiteName(r.website) === normalizedWebsite && r.id !== state.editingId;
+    });
+    if (dup) { showToast("An outreach record for this website already exists"); return; }
+
+    website = normalizedWebsite;
+
+    var submitBtn = document.getElementById("submitBtn");
+    submitBtn.disabled = true;
+
+    try {
+      if (state.editingId) {
+        var existing = state.records.find(function (r) { return r.id === state.editingId; });
+        if (!existing) { submitBtn.disabled = false; return; }
+        var updatedRecord = buildRecordObject(state.editingId, website, contact, email, firstEmailDate, fu1Sent, fu2Sent, fu3Sent, status, notes);
+        var updateResult = await supabaseClient
+          .from(OUTREACH_TABLE)
+          .update(recordToUpdateRow(updatedRecord))
+          .eq("id", state.editingId);
+        if (updateResult.error) {
+          showToast("Update failed: " + updateResult.error.message);
+          submitBtn.disabled = false;
+          return;
+        }
+        var idx = state.records.findIndex(function (r) { return r.id === state.editingId; });
+        if (idx !== -1) {
+          updatedRecord.userId = existing.userId;
+          updatedRecord.ownerEmail = existing.ownerEmail;
+          state.records[idx] = updatedRecord;
+        }
+        showToast("Record updated");
+      } else {
+        var draftRecord = { website: website, contact: contact, email: email, firstEmailDate: firstEmailDate, fu1Sent: fu1Sent, fu2Sent: fu2Sent, fu3Sent: fu3Sent, status: status, notes: notes };
+        var insertResult = await supabaseClient
+          .from(OUTREACH_TABLE)
+          .insert(recordToInsertRow(draftRecord))
+          .select()
+          .single();
+        if (insertResult.error) {
+          showToast("Add failed: " + insertResult.error.message);
+          submitBtn.disabled = false;
+          return;
+        }
+        state.records.push(rowToRecord(insertResult.data));
+        showToast("Record added");
+      }
+
+      resetForm();
+      renderAll();
+    } catch (err) {
+      console.error(err);
+      showToast("Something went wrong saving the record");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  /* ---------- DELETE ---------- */
+
+  async function deleteRecord(id) {
+    var record = state.records.find(function (r) { return r.id === id; });
+    if (!record) return;
+    if (!confirm('Delete outreach record for "' + record.website + '"? This cannot be undone.')) return;
+
+    var deleteResult = await supabaseClient.from(OUTREACH_TABLE).delete().eq("id", id);
+    if (deleteResult.error) {
+      showToast("Delete failed: " + deleteResult.error.message);
+      return;
+    }
+
+    state.records = state.records.filter(function (r) { return r.id !== id; });
+    if (state.editingId === id) resetForm();
+    renderAll();
+    showToast("Record deleted");
+  }
+
+  /* ---------- MARK FOLLOW-UP SENT ---------- */
+
+  function dueFollowups(record) {
+    if (!record.firstEmailDate) return [];
+    if (record.status === "replied" || record.status === "closed") return [];
+    var due = computeFollowupDueDates(record.firstEmailDate);
+    var today = todayDateOnly();
+    var result = [];
+    if (!record.fu1Sent && due.fu1 && due.fu1.getTime() <= today.getTime()) result.push(1);
+    if (record.fu1Sent && !record.fu2Sent && due.fu2 && due.fu2.getTime() <= today.getTime()) result.push(2);
+    if (record.fu2Sent && !record.fu3Sent && due.fu3 && due.fu3.getTime() <= today.getTime()) result.push(3);
+    return result;
+  }
+
+  async function markFollowupSent(recordId, fuNumber) {
+    var record = state.records.find(function (r) { return r.id === recordId; });
+    if (!record) return;
+
+    var today = todayString();
+    var updatePayload = {};
+
+    if (fuNumber === 1) {
+      updatePayload.fu1_sent = today;
+    } else if (fuNumber === 2) {
+      updatePayload.fu2_sent = today;
+    } else if (fuNumber === 3) {
+      updatePayload.fu3_sent = today;
+    } else {
+      return;
+    }
+
+    var newStatus = record.status;
+    if (record.status !== "replied" && record.status !== "closed") {
+      if (fuNumber === 1) newStatus = "contacted";
+      if (fuNumber === 2) newStatus = "fu2_due";
+      if (fuNumber === 3) newStatus = "fu3_due";
+    }
+    updatePayload.status = newStatus;
+
+    var result = await supabaseClient
+      .from(OUTREACH_TABLE)
+      .update(updatePayload)
+      .eq("id", recordId);
+
+    if (result.error) {
+      showToast("Save failed: " + result.error.message);
+      return;
+    }
+
+    if (fuNumber === 1) record.fu1Sent = today;
+    if (fuNumber === 2) record.fu2Sent = today;
+    if (fuNumber === 3) record.fu3Sent = today;
+    record.status = newStatus;
+
+    showToast("FU" + fuNumber + " marked sent for " + record.website);
+    renderAll();
+  }
+
+  /* ---------- TODAY'S QUEUE FILTER ---------- */
+
+  function setQueueFilter(active) {
+    state.queueFilterActive = active;
+
+    var card = document.getElementById("dashTodayCard");
+    var banner = document.getElementById("queueBanner");
+    var heading = document.getElementById("tableHeading");
+
+    if (active) {
+      card.classList.add("active-filter");
+      banner.classList.remove("hidden");
+      heading.textContent = "Today's Queue";
+    } else {
+      card.classList.remove("active-filter");
+      banner.classList.add("hidden");
+      heading.textContent = "Outreach Records";
+    }
+
+    renderAll();
+  }
+
+  document.getElementById("dashTodayCard").addEventListener("click", function () {
+    setQueueFilter(!state.queueFilterActive);
+  });
+
+  document.getElementById("queueBannerClear").addEventListener("click", function () {
+    setQueueFilter(false);
+  });
+
+  /* ---------- FILTER / SEARCH ---------- */
+
+  function recordMatchesSearch(record, search) {
+    if (!search) return true;
+    if (record.website.toLowerCase().indexOf(search) !== -1) return true;
+    if ((record.contact || "").toLowerCase().indexOf(search) !== -1) return true;
+    if ((record.email || "").toLowerCase().indexOf(search) !== -1) return true;
+    if ((record.notes || "").toLowerCase().indexOf(search) !== -1) return true;
+    return false;
+  }
+
+  function isFollowupDueToday(record) {
+    if (record.status === "replied" || record.status === "closed") return false;
+    if (!record.firstEmailDate) return false;
+    var due = computeFollowupDueDates(record.firstEmailDate);
+    var today = todayDateOnly();
+    if (!record.fu1Sent && due.fu1 && due.fu1.getTime() <= today.getTime()) return true;
+    if (record.fu1Sent && !record.fu2Sent && due.fu2 && due.fu2.getTime() <= today.getTime()) return true;
+    if (record.fu2Sent && !record.fu3Sent && due.fu3 && due.fu3.getTime() <= today.getTime()) return true;
+    return false;
+  }
+
+  function getFilteredRecords() {
+    var search = document.getElementById("searchInput").value.trim().toLowerCase();
+    var filterStatus = document.getElementById("filterStatus").value;
+
+    return state.records.filter(function (r) {
+      if (state.queueFilterActive && !isFollowupDueToday(r)) return false;
+      if (filterStatus !== "all" && r.status !== filterStatus) return false;
+      return recordMatchesSearch(r, search);
+    });
+  }
+
+  /* ---------- DASHBOARD ---------- */
+
+  function renderDashboard() {
+    var needFollowupToday = state.records.filter(isFollowupDueToday).length;
+    var waitingForReply = state.records.filter(function (r) {
+      return ["contacted", "fu1_due", "fu2_due", "fu3_due"].indexOf(r.status) !== -1;
+    }).length;
+    var replied = state.records.filter(function (r) { return r.status === "replied"; }).length;
+    var closed = state.records.filter(function (r) { return r.status === "closed"; }).length;
+
+    document.getElementById("dashToday").textContent = needFollowupToday;
+    document.getElementById("dashWaiting").textContent = waitingForReply;
+    document.getElementById("dashReplied").textContent = replied;
+    document.getElementById("dashClosed").textContent = closed;
+
+    document.getElementById("queueBannerCount").textContent = needFollowupToday;
+  }
+
+  /* ---------- RENDER TABLE ---------- */
+
+  function renderFollowupDatesCell(record) {
+    if (!record.firstEmailDate) {
+      return '<span class="fu-row">No first email date set</span>';
+    }
+    var due = computeFollowupDueDates(record.firstEmailDate);
+    var today = todayDateOnly();
+
+    function rowFor(label, sentVal, dueDate) {
+      if (sentVal) {
+        return '<div class="fu-row sent">' + escapeHtml(label) + ' sent: ' + escapeHtml(formatDisplayDate(sentVal)) + '</div>';
+      }
+      if (!dueDate) return '';
+      var cls = "fu-row";
+      var dueTime = dueDate.getTime();
+      if (dueTime === today.getTime()) cls += " due-today";
+      else if (dueTime < today.getTime()) cls += " overdue";
+      var suffix = dueTime < today.getTime() ? " (overdue)" : (dueTime === today.getTime() ? " (today)" : "");
+      return '<div class="' + cls + '">' + escapeHtml(label) + ' due: ' + escapeHtml(formatDateOnly(dueDate)) + escapeHtml(suffix) + '</div>';
+    }
+
+    var html = '<div class="fu-row">First email: ' + escapeHtml(formatDisplayDate(record.firstEmailDate)) + '</div>';
+    html += rowFor("FU1", record.fu1Sent, due.fu1);
+    html += rowFor("FU2", record.fu2Sent, due.fu2);
+    html += rowFor("FU3", record.fu3Sent, due.fu3);
+
+    var dueFUs = dueFollowups(record);
+    if (dueFUs.length > 0 && record.userId === currentUser.id) {
+      html += '<div class="fu-sent-actions">';
+      dueFUs.forEach(function (n) {
+        html += '<button type="button" class="mark-sent" data-action="markfusent" data-id="' + record.id + '" data-fu="' + n + '">✓ Mark FU' + n + ' Sent</button>';
+      });
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  function renderRecordsTable() {
+    var tbody = document.getElementById("recordsTableBody");
+    var records = getFilteredRecords();
+    document.getElementById("recordCount").textContent = state.records.length;
+
+    tbody.innerHTML = "";
+    document.getElementById("recordsEmpty").classList.toggle("hidden", records.length !== 0);
+
+    records.forEach(function (r, i) {
+      var tr = document.createElement("tr");
+      tr.style.animationDelay = (i * 0.04) + "s";
+
+      var dueToday = isFollowupDueToday(r);
+      if (dueToday) {
+        tr.classList.add("due-today-row");
+      }
+
+      var contactHtml = '<div class="contact-cell">' +
+        (r.contact ? '<span>' + escapeHtml(r.contact) + '</span>' : '<span class="contact-email">No contact name</span>') +
+        (r.email ? '<span class="contact-email">' + escapeHtml(r.email) + '</span>' : '') +
+        '</div>';
+
+      var ownerCell = isAdmin ? '<td class="owner-col mobile-detail-cell" data-label="Owner"><span class="owner-cell">' + escapeHtml(r.ownerEmail || r.userId) + '</span></td>' : '';
+      var moveBtn = (r.userId === currentUser.id)
+        ? '<button type="button" class="ghost small success" data-action="move" data-id="' + r.id + '" style="color:var(--good);">Move To Inventory</button>'
+        : '';
+
+      var firstEmailCellHtml = escapeHtml(formatDisplayDate(r.firstEmailDate)) +
+        (r.firstEmailSender ? '<div class="contact-email">via ' + escapeHtml(r.firstEmailSender) + '</div>' : '');
+
+      // Mobile-only summary cell: Website + Status pill + due-today badge +
+      // expand toggle. Hidden entirely on desktop (>800px) via CSS, so it
+      // has zero effect on the existing desktop table layout.
+      var mobileSummaryCell =
+        '<td class="mobile-summary-cell" data-action="toggle-expand" data-id="' + r.id + '">' +
+          '<div class="mobile-summary-main">' +
+            '<span class="mobile-summary-website">' + escapeHtml(r.website) + '</span>' +
+            '<div class="mobile-summary-row">' +
+              '<span class="pill status-' + r.status + '">' + escapeHtml(STATUS_LABELS[r.status] || r.status) + '</span>' +
+              (dueToday ? '<span class="mobile-due-badge">Due Today</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<button type="button" class="mobile-expand-toggle" aria-label="Expand details">▾</button>' +
+        '</td>';
+
+      tr.innerHTML =
+        mobileSummaryCell +
+        '<td class="name-cell mobile-detail-cell" data-label="Website">' + escapeHtml(r.website) + '</td>' +
+        '<td class="mobile-detail-cell" data-label="Contact">' + contactHtml + '</td>' +
+        '<td class="mobile-detail-cell" data-label="First Email">' + firstEmailCellHtml + '</td>' +
+        '<td class="mobile-detail-cell" data-label="Follow-ups"><div class="fu-dates-cell">' + renderFollowupDatesCell(r) + '</div></td>' +
+        '<td class="mobile-detail-cell" data-label="Status"><span class="pill status-' + r.status + '">' + escapeHtml(STATUS_LABELS[r.status] || r.status) + '</span></td>' +
+        '<td class="mobile-detail-cell" data-label="Notes"><div class="notes-cell">' + (r.notes ? escapeHtml(r.notes) : "—") + '</div></td>' +
+        ownerCell +
+        '<td class="mobile-detail-cell"><div class="row-actions">' +
+          '<button type="button" class="ghost small" data-action="edit" data-id="' + r.id + '">Edit</button>' +
+          '<button type="button" class="ghost small" data-action="email" data-id="' + r.id + '" style="color:var(--accent);">Send Email</button>' +
+          moveBtn +
+          '<button type="button" class="ghost small danger" data-action="delete" data-id="' + r.id + '">Delete</button>' +
+        '</div></td>';
+      tbody.appendChild(tr);
+    });
+
+    wireRowActions(tbody);
+  }
+
+  function wireRowActions(tbody) {
+    tbody.querySelectorAll('button[data-action="edit"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var record = state.records.find(function (r) { return r.id === btn.getAttribute("data-id"); });
+        if (record) enterEditMode(record);
+      });
+    });
+    tbody.querySelectorAll('button[data-action="delete"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        deleteRecord(btn.getAttribute("data-id"));
+      });
+    });
+    tbody.querySelectorAll('button[data-action="move"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        openMoveModal(btn.getAttribute("data-id"));
+      });
+    });
+    tbody.querySelectorAll('button[data-action="email"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        openEmailModal(btn.getAttribute("data-id"));
+      });
+    });
+    tbody.querySelectorAll('button[data-action="markfusent"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-id");
+        var fu = Number(btn.getAttribute("data-fu"));
+        markFollowupSent(id, fu);
+      });
+    });
+    // Mobile-only summary cell: tap to expand/collapse the row's details.
+    // No-op on desktop since the cell is hidden there, but harmless to wire up regardless.
+    tbody.querySelectorAll('td[data-action="toggle-expand"]').forEach(function (cell) {
+      cell.addEventListener("click", function () {
+        var tr = cell.closest("tr");
+        if (tr) tr.classList.toggle("expanded");
+      });
+    });
+  }
+
+  /* ---------- MOVE TO INVENTORY ---------- */
+
+  async function openMoveModal(recordId) {
+    var record = state.records.find(function (r) { return r.id === recordId; });
+    if (!record) return;
+
+    if (record.userId !== currentUser.id) {
+      showToast("You can only move your own outreach records into inventory");
+      return;
+    }
+
+    var inventorySites = await loadInventorySites();
+    var normalized = normalizeSiteName(record.website);
+    var alreadyInInventory = inventorySites.some(function (s) {
+      return normalizeSiteName(s.name) === normalized;
+    });
+    if (alreadyInInventory) {
+      showToast("This site is already in your inventory");
+      return;
+    }
+
+    state.moveContextId = recordId;
+    document.getElementById("moveModalTitle").textContent = "Move \"" + record.website + "\" to Inventory";
+    document.getElementById("m_basePrice").value = "";
+    document.getElementById("m_clientPrice").value = "";
+    document.getElementById("m_type").value = "paid";
+    document.getElementById("m_linkType").value = "guest_post";
+    document.getElementById("moveModalBackdrop").classList.remove("hidden");
+    document.getElementById("m_basePrice").focus();
+  }
+
+  function closeMoveModal() {
+    state.moveContextId = null;
+    document.getElementById("moveModalBackdrop").classList.add("hidden");
+  }
+
+  document.getElementById("moveModalCancel").addEventListener("click", closeMoveModal);
+  document.getElementById("moveModalBackdrop").addEventListener("click", function (e) {
+    if (e.target === document.getElementById("moveModalBackdrop")) closeMoveModal();
+  });
+
+  document.getElementById("moveModalForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!state.moveContextId) return;
+
+    var record = state.records.find(function (r) { return r.id === state.moveContextId; });
+    if (!record) { closeMoveModal(); return; }
+
+    var basePrice = Number(document.getElementById("m_basePrice").value);
+    var clientPrice = Number(document.getElementById("m_clientPrice").value);
+    var type = document.getElementById("m_type").value;
+    var linkType = document.getElementById("m_linkType").value;
+
+    if (isNaN(basePrice) || isNaN(clientPrice)) { showToast("Prices must be numbers"); return; }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      var inventorySites = await loadInventorySites();
+      var normalized = normalizeSiteName(record.website);
+      var dup = inventorySites.some(function (s) { return normalizeSiteName(s.name) === normalized; });
+      if (dup) {
+        showToast("This site is already in your inventory");
+        closeMoveModal();
+        return;
+      }
+
+      var insertResult = await supabaseClient.from(SITES_TABLE).insert({
+        name: normalized,
+        base_price: basePrice,
+        client_price: clientPrice,
+        type: type,
+        link_type: linkType,
+        requires: [],
+        user_id: currentUser.id
+      });
+
+      if (insertResult.error) {
+        showToast("Move failed: " + insertResult.error.message);
+        return;
+      }
+
+      var newNotes = (record.notes ? record.notes + "\n" : "") + "Moved to Inventory on " + formatDateOnly(todayDateOnly()) + ".";
+      var updateResult = await supabaseClient
+        .from(OUTREACH_TABLE)
+        .update({ status: "closed", notes: newNotes })
+        .eq("id", record.id);
+
+      if (updateResult.error) {
+        showToast("Site added to inventory, but updating the outreach record failed: " + updateResult.error.message);
+      } else {
+        record.status = "closed";
+        record.notes = newNotes;
+      }
+
+      closeMoveModal();
+      renderAll();
+      showToast('"' + record.website + '" added to Inventory');
+    } catch (err) {
+      console.error(err);
+      showToast("Something went wrong moving this site to inventory");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
+  /* ---------- SEND EMAIL MODAL ---------- */
+
+  var emailModalState = {
+    recordId: null,
+    templates: []
+  };
+
+  function getFollowupSubject(record) {
+    if (record.firstEmailSubject) return "Re: " + record.firstEmailSubject;
+    return "Re: " + record.website;
+  }
+
+  // The 5 built-in first-outreach templates are admin-only -- members never
+  // see them and only ever work from their own custom templates (which
+  // start empty for everyone). The single Follow-up template is treated
+  // differently: it's structural, not promotional content, so it stays
+  // available to every user regardless of role -- otherwise members would
+  // have no way to send a follow-up at all.
+  function getTemplatesForRecord(record) {
+    if (!record.firstEmailDate && record.status === "not_contacted") {
+      var builtins = isAdmin ? FIRST_OUTREACH_TEMPLATES : [];
+      return builtins.concat(customTemplates);
+    }
+    return [FOLLOWUP_TEMPLATE];
+  }
+
+  function populateEmailModalSelects(record) {
+    var templateSelect = document.getElementById("e_template");
+    var senderSelect = document.getElementById("e_sender");
+
+    emailModalState.templates = getTemplatesForRecord(record);
+    templateSelect.innerHTML = emailModalState.templates.map(function (t) {
+      var customSuffix = t.id.indexOf("custom_") === 0 ? " (custom)" : "";
+      return '<option value="' + t.id + '">' + escapeHtml(t.label) + escapeHtml(customSuffix) + '</option>';
+    }).join("");
+
+    if (senderAccounts.length === 0) {
+      senderSelect.innerHTML = '<option value="">No sender accounts added yet — use Manage Senders</option>';
+    } else {
+      senderSelect.innerHTML = senderAccounts.map(function (acc, i) {
+        return '<option value="' + i + '">' + escapeHtml(acc.label) + ' (' + escapeHtml(acc.email) + ')</option>';
+      }).join("");
+
+      if (record.firstEmailSender) {
+        var matchIdx = senderAccounts.findIndex(function (acc) { return acc.email === record.firstEmailSender; });
+        if (matchIdx !== -1) senderSelect.value = String(matchIdx);
+      }
+    }
+
+    var mobileNote = document.getElementById("mobileSenderNote");
+    if (isMobileDevice()) {
+      mobileNote.textContent = record.firstEmailSender
+        ? "First email was sent from " + record.firstEmailSender + ". On mobile this opens your mail app's compose screen using whichever account is currently active there — switch accounts manually in the app if needed."
+        : "On mobile this will open your mail app's compose screen using whichever account is currently active there — the account picked above only applies on desktop.";
+      mobileNote.classList.remove("hidden");
+    } else {
+      mobileNote.classList.add("hidden");
+    }
+  }
+
+  function getTemplateSubject(template, record) {
+    if (template.subject) return fillTemplate(template.subject, record);
+    return getFollowupSubject(record);
+  }
+
+  function renderEmailPreview() {
+    var record = state.records.find(function (r) { return r.id === emailModalState.recordId; });
+    if (!record) return;
+
+    var templateId = document.getElementById("e_template").value;
+    var template = emailModalState.templates.find(function (t) { return t.id === templateId; }) || emailModalState.templates[0];
+    if (!template) return;
+
+    var subject = getTemplateSubject(template, record);
+    var body = fillTemplate(template.body, record);
+
+    document.getElementById("e_previewSubject").textContent = subject;
+    document.getElementById("e_previewBody").textContent = body;
+  }
+
+  function openEmailModal(recordId) {
+    var record = state.records.find(function (r) { return r.id === recordId; });
+    if (!record) return;
+
+    emailModalState.recordId = recordId;
+    document.getElementById("emailModalTitle").textContent = "Send Email — " + record.website;
+
+    var warningField = document.getElementById("noEmailWarningField");
+    if (!record.email) {
+      document.getElementById("noEmailWarningText").textContent =
+        "No email address is saved for this record. Gmail will open with the recipient field empty — you'll need to fill it in manually.";
+      warningField.classList.remove("hidden");
+    } else {
+      warningField.classList.add("hidden");
+    }
+
+    populateEmailModalSelects(record);
+    renderEmailPreview();
+
+    document.getElementById("emailModalBackdrop").classList.remove("hidden");
+  }
+
+  function closeEmailModal() {
+    emailModalState.recordId = null;
+    document.getElementById("emailModalBackdrop").classList.add("hidden");
+  }
+
+  document.getElementById("e_template").addEventListener("change", renderEmailPreview);
+
+  document.getElementById("emailModalCancel").addEventListener("click", closeEmailModal);
+  document.getElementById("emailModalBackdrop").addEventListener("click", function (e) {
+    if (e.target === document.getElementById("emailModalBackdrop")) closeEmailModal();
+  });
+
+  document.getElementById("emailModalOpenGmail").addEventListener("click", async function () {
+    var record = state.records.find(function (r) { return r.id === emailModalState.recordId; });
+    if (!record) return;
+
+    var templateId = document.getElementById("e_template").value;
+    var template = emailModalState.templates.find(function (t) { return t.id === templateId; }) || emailModalState.templates[0];
+    if (!template) return;
+
+    if (senderAccounts.length === 0) {
+      showToast("Add a sender account first (Manage Senders)");
+      return;
+    }
+
+    var subject = getTemplateSubject(template, record);
+    var body = fillTemplate(template.body, record);
+
+    var senderIdx = Number(document.getElementById("e_sender").value);
+    var chosenSender = senderAccounts[senderIdx] || senderAccounts[0];
+
+    var autoPayload = {};
+    var isFirstOutreach = template.subject; // built-in + custom first-outreach templates have a subject; follow-up doesn't
+
+    if (isFirstOutreach) {
+      autoPayload.first_email_subject = subject;
+      autoPayload.first_email_sender = chosenSender.email;
+
+      if (!record.firstEmailDate) {
+        autoPayload.first_email_date = todayString();
+      }
+
+      if (record.status === "not_contacted") {
+        autoPayload.status = "contacted";
+      }
+    }
+
+    if (Object.keys(autoPayload).length > 0) {
+      var updateResult = await supabaseClient
+        .from(OUTREACH_TABLE)
+        .update(autoPayload)
+        .eq("id", record.id);
+
+      if (!updateResult.error) {
+        if (autoPayload.first_email_subject) record.firstEmailSubject = autoPayload.first_email_subject;
+        if (autoPayload.first_email_sender)  record.firstEmailSender  = autoPayload.first_email_sender;
+        if (autoPayload.first_email_date)    record.firstEmailDate    = autoPayload.first_email_date;
+        if (autoPayload.status)              record.status            = autoPayload.status;
+      } else {
+        console.error("Failed to auto-log send", updateResult.error);
+      }
+    }
+
+    var mobile = isMobileDevice();
+    var url;
+    if (mobile) {
+      url = buildMailtoUrl(record.email, subject, body);
+    } else {
+      url = buildGmailComposeUrl(record.email, subject, body, chosenSender ? chosenSender.email : null);
+    }
+
+    window.open(url, mobile ? "_self" : "_blank");
+    closeEmailModal();
+    renderAll();
+  });
+
+  /* ---------- MANAGE TEMPLATES MODAL ---------- */
+
+  function renderBuiltinTemplatesList() {
+    var wrap = document.getElementById("builtinTemplatesListWrap");
+
+    // Members never see the 5 first-outreach built-ins, but the single
+    // Follow-up template is structural and available to everyone, so it's
+    // still worth showing here for reference.
+    var visibleBuiltins = isAdmin ? FIRST_OUTREACH_TEMPLATES.concat([FOLLOWUP_TEMPLATE]) : [FOLLOWUP_TEMPLATE];
+
+    var rows = visibleBuiltins.map(function (t) {
+      var subjectPreview = t.subject ? t.subject : "(no subject — threads as a reply)";
+      return '<div class="template-row">' +
+        '<div class="tpl-info">' +
+          '<span class="tpl-label">' + escapeHtml(t.label) + '</span>' +
+          '<span class="tpl-subject">' + escapeHtml(subjectPreview) + '</span>' +
+        '</div>' +
+        '<span class="tpl-badge">Built-in</span>' +
+      '</div>';
+    }).join("");
+
+    if (!isAdmin) {
+      rows += '<div class="template-empty-hint">Add your own custom templates below — when sending.</div>';
+    }
+
+    wrap.innerHTML = rows;
+  }
+
+  function renderCustomTemplatesList() {
+    var wrap = document.getElementById("customTemplatesListWrap");
+    if (customTemplates.length === 0) {
+      wrap.innerHTML = '<div class="template-empty-hint">No custom templates yet. Add one below.</div>';
+      return;
+    }
+    wrap.innerHTML = customTemplates.map(function (t) {
+      return '<div class="template-row">' +
+        '<div class="tpl-info">' +
+          '<span class="tpl-label">' + escapeHtml(t.label) + '</span>' +
+          '<span class="tpl-subject">' + escapeHtml(t.subject) + '</span>' +
+        '</div>' +
+        '<button type="button" class="ghost small danger" data-action="delete-template" data-id="' + t.id + '">Delete</button>' +
+      '</div>';
+    }).join("");
+
+    wrap.querySelectorAll('button[data-action="delete-template"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        deleteCustomTemplate(btn.getAttribute("data-id"));
+      });
+    });
+  }
+
+  function openTemplatesModal() {
+    renderBuiltinTemplatesList();
+    renderCustomTemplatesList();
+    document.getElementById("templatesModalBackdrop").classList.remove("hidden");
+  }
+
+  function closeTemplatesModal() {
+    document.getElementById("templatesModalBackdrop").classList.add("hidden");
+  }
+
+  document.getElementById("manageTemplatesBtn").addEventListener("click", openTemplatesModal);
+  document.getElementById("templatesModalClose").addEventListener("click", closeTemplatesModal);
+  document.getElementById("templatesModalBackdrop").addEventListener("click", function (e) {
+    if (e.target === document.getElementById("templatesModalBackdrop")) closeTemplatesModal();
+  });
+
+  document.getElementById("templateAddForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    var label = document.getElementById("t_label").value.trim();
+    var subject = document.getElementById("t_subject").value.trim();
+    var body = document.getElementById("t_body").value.trim();
+
+    if (!label || !subject || !body) {
+      showToast("Label, subject, and body are all required");
+      return;
+    }
+
+    var newTemplate = { id: genTemplateId(), label: label, subject: subject, body: body };
+    customTemplates.push(newTemplate);
+    saveCustomTemplates();
+
+    renderCustomTemplatesList();
+    document.getElementById("templateAddForm").reset();
+    showToast("Template added — it'll show up in the Send Email dropdown");
+  });
+
+  function deleteCustomTemplate(id) {
+    if (!confirm("Delete this custom template?")) return;
+    customTemplates = customTemplates.filter(function (t) { return t.id !== id; });
+    saveCustomTemplates();
+    renderCustomTemplatesList();
+    showToast("Template deleted");
+  }
+
+  /* ---------- MANAGE SENDERS MODAL ---------- */
+
+  function renderSenderCount() {
+    document.getElementById("senderCount").textContent = senderAccounts.length;
+  }
+
+  function renderSendersList() {
+    var wrap = document.getElementById("sendersListWrap");
+    if (senderAccounts.length === 0) {
+      wrap.innerHTML = '<div class="template-empty-hint">No sender accounts added yet. Add one below.</div>';
+    } else {
+      wrap.innerHTML = senderAccounts.map(function (acc) {
+        return '<div class="template-row">' +
+          '<div class="tpl-info">' +
+            '<span class="tpl-label">' + escapeHtml(acc.label) + '</span>' +
+            '<span class="tpl-subject">' + escapeHtml(acc.email) + '</span>' +
+          '</div>' +
+          '<button type="button" class="ghost small danger" data-action="delete-sender" data-id="' + acc.id + '">Delete</button>' +
+        '</div>';
+      }).join("");
+
+      wrap.querySelectorAll('button[data-action="delete-sender"]').forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          deleteSenderAccount(btn.getAttribute("data-id"));
+        });
+      });
+    }
+
+    var addBtn = document.getElementById("senderAddSubmitBtn");
+    var atLimit = senderAccounts.length >= SENDER_ACCOUNTS_MAX;
+    addBtn.disabled = atLimit;
+    addBtn.textContent = atLimit ? "Limit reached (" + SENDER_ACCOUNTS_MAX + ")" : "Add Sender";
+  }
+
+  function openSendersModal() {
+    renderSendersList();
+    document.getElementById("sendersModalBackdrop").classList.remove("hidden");
+  }
+
+  function closeSendersModal() {
+    document.getElementById("sendersModalBackdrop").classList.add("hidden");
+  }
+
+  document.getElementById("manageSendersBtn").addEventListener("click", openSendersModal);
+  document.getElementById("sendersModalClose").addEventListener("click", closeSendersModal);
+  document.getElementById("sendersModalBackdrop").addEventListener("click", function (e) {
+    if (e.target === document.getElementById("sendersModalBackdrop")) closeSendersModal();
+  });
+
+  document.getElementById("senderAddForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    if (senderAccounts.length >= SENDER_ACCOUNTS_MAX) {
+      showToast("You can only add up to " + SENDER_ACCOUNTS_MAX + " sender accounts");
+      return;
+    }
+
+    var label = document.getElementById("s_label").value.trim();
+    var email = document.getElementById("s_email").value.trim();
+    if (!label || !email) { showToast("Label and email are required"); return; }
+
+    senderAccounts.push({ id: genSenderId(), label: label, email: email });
+    saveSenderAccounts();
+
+    renderSendersList();
+    renderSenderCount();
+    document.getElementById("senderAddForm").reset();
+    showToast("Sender added");
+  });
+
+  function deleteSenderAccount(id) {
+    if (!confirm("Remove this sender account?")) return;
+    senderAccounts = senderAccounts.filter(function (acc) { return acc.id !== id; });
+    saveSenderAccounts();
+    renderSendersList();
+    renderSenderCount();
+    showToast("Sender removed");
+  }
+
+  /* ---------- BULK ADD ---------- */
+
+  document.getElementById("bulkToggleBtn").addEventListener("click", function () {
+    var body = document.getElementById("bulkAddBody");
+    var btn  = document.getElementById("bulkToggleBtn");
+    var hidden = body.classList.toggle("hidden");
+    btn.textContent = hidden ? "Show" : "Hide";
+    if (!hidden) document.getElementById("bulkInput").focus();
+  });
+
+  document.getElementById("bulkClearBtn").addEventListener("click", function () {
+    document.getElementById("bulkInput").value = "";
+    document.getElementById("bulkResult").classList.add("hidden");
+    document.getElementById("bulkResult").innerHTML = "";
+    document.getElementById("bulkStatus").textContent = "";
+  });
+
+  function parseBulkLine(line) {
+    line = line.trim();
+    if (!line) return null;
+
+    var parts = line.split(/,|\t/).map(function (p) { return p.trim(); }).filter(Boolean);
+    if (!parts.length) return null;
+
+    var website = normalizeSiteName(parts[0]);
+    if (!website) return null;
+
+    var contact = "";
+    var email   = "";
+
+    if (parts.length === 2) {
+      if (parts[1].indexOf("@") !== -1) {
+        email = parts[1];
+      } else {
+        contact = parts[1];
+      }
+    } else if (parts.length >= 3) {
+      contact = parts[1];
+      email   = parts[2];
+    }
+
+    return { website: website, contact: contact, email: email };
+  }
+
+  document.getElementById("bulkAddBtn").addEventListener("click", async function () {
+    var raw = document.getElementById("bulkInput").value;
+    var lines = raw.split("\n");
+
+    var parsed = [];
+    var parseErrors = [];
+
+    lines.forEach(function (line, i) {
+      if (!line.trim()) return;
+      var p = parseBulkLine(line);
+      if (!p) {
+        parseErrors.push("Line " + (i + 1) + ": could not parse — " + line.trim());
+      } else {
+        parsed.push(p);
+      }
+    });
+
+    if (!parsed.length && !parseErrors.length) {
+      showToast("Nothing to add — paste some sites first");
+      return;
+    }
+
+    var existingNormalized = state.records.map(function (r) { return normalizeSiteName(r.website); });
+    var toInsert  = [];
+    var skipped   = [];
+
+    parsed.forEach(function (p) {
+      if (existingNormalized.indexOf(p.website) !== -1) {
+        skipped.push(p.website);
+      } else {
+        var alreadyQueued = toInsert.some(function (r) { return r.website === p.website; });
+        if (alreadyQueued) {
+          skipped.push(p.website + " (duplicate in paste)");
+        } else {
+          toInsert.push(p);
+        }
+      }
+    });
+
+    var resultEl = document.getElementById("bulkResult");
+    var statusEl = document.getElementById("bulkStatus");
+    resultEl.innerHTML = "";
+    resultEl.classList.remove("hidden");
+
+    if (toInsert.length === 0) {
+      resultEl.innerHTML = '<span class="br-skip">All ' + skipped.length + ' site(s) already exist in your tracker — nothing added.</span>';
+      return;
+    }
+
+    var btn = document.getElementById("bulkAddBtn");
+    btn.disabled = true;
+    statusEl.textContent = "Adding " + toInsert.length + " site(s)…";
+
+    try {
+      var rows = toInsert.map(function (p) {
+        return {
+          website: p.website,
+          contact: p.contact || "",
+          email:   p.email   || "",
+          first_email_date: null,
+          fu1_sent: null,
+          fu2_sent: null,
+          fu3_sent: null,
+          status: "not_contacted",
+          notes: "",
+          user_id: currentUser.id
+        };
+      });
+
+      var insertResult = await supabaseClient
+        .from(OUTREACH_TABLE)
+        .insert(rows)
+        .select();
+
+      if (insertResult.error) {
+        showToast("Bulk add failed: " + insertResult.error.message);
+        statusEl.textContent = "";
+        btn.disabled = false;
+        return;
+      }
+
+      var newRecords = (insertResult.data || []).map(rowToRecord);
+      state.records = state.records.concat(newRecords);
+
+      var html = "";
+      html += '<span class="br-ok">✓ Added ' + newRecords.length + ' site(s)</span>';
+      newRecords.forEach(function (r) {
+        html += '<span class="br-line">&nbsp;&nbsp;· ' + escapeHtml(r.website) + (r.email ? " &lt;" + escapeHtml(r.email) + "&gt;" : "") + '</span>';
+      });
+      if (skipped.length) {
+        html += '<span class="br-skip">⊘ Skipped ' + skipped.length + ' duplicate(s): ' + skipped.map(escapeHtml).join(", ") + '</span>';
+      }
+      if (parseErrors.length) {
+        parseErrors.forEach(function (e) {
+          html += '<span class="br-err">✕ ' + escapeHtml(e) + '</span>';
+        });
+      }
+      resultEl.innerHTML = html;
+      statusEl.textContent = "";
+
+      document.getElementById("bulkInput").value = "";
+
+      renderAll();
+      showToast("Added " + newRecords.length + " site(s)");
+    } catch (err) {
+      console.error(err);
+      showToast("Something went wrong during bulk add");
+      statusEl.textContent = "";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ---------- SEARCH / FILTER LISTENERS ---------- */
+
+  document.getElementById("searchInput").addEventListener("input", renderAll);
+  document.getElementById("filterStatus").addEventListener("change", renderAll);
+
+  /* ---------- EXPORT / IMPORT ---------- */
+
+  document.getElementById("exportBtn").addEventListener("click", function () {
+    var dataStr = JSON.stringify(state.records, null, 2);
+    var blob = new Blob([dataStr], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "outreach-export-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Exported JSON");
+  });
+
+  document.getElementById("importBtn").addEventListener("click", function () {
+    document.getElementById("importFileInput").click();
+  });
+
+  document.getElementById("importFileInput").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = async function (evt) {
+      try {
+        var parsed = JSON.parse(evt.target.result);
+        if (!Array.isArray(parsed)) throw new Error("JSON root must be an array of outreach records");
+        var validStatuses = Object.keys(STATUS_LABELS);
+        var sanitized = parsed.map(function (item) {
+          if (!item || typeof item !== "object") throw new Error("Invalid outreach record entry");
+          var website = typeof item.website === "string" ? normalizeSiteName(item.website) : "";
+          var contact = typeof item.contact === "string" ? item.contact : "";
+          var email = typeof item.email === "string" ? item.email : "";
+          var firstEmailDate = typeof item.firstEmailDate === "string" ? item.firstEmailDate : "";
+          var fu1Sent = typeof item.fu1Sent === "string" ? item.fu1Sent : "";
+          var fu2Sent = typeof item.fu2Sent === "string" ? item.fu2Sent : "";
+          var fu3Sent = typeof item.fu3Sent === "string" ? item.fu3Sent : "";
+          var status = validStatuses.indexOf(item.status) !== -1 ? item.status : "not_contacted";
+          var notes = typeof item.notes === "string" ? item.notes : "";
+          return { website: website, contact: contact, email: email, firstEmailDate: firstEmailDate, fu1Sent: fu1Sent, fu2Sent: fu2Sent, fu3Sent: fu3Sent, status: status, notes: notes };
+        }).filter(function (r) { return r.website.length > 0; });
+
+        var ownRowCount = state.records.filter(function (r) { return r.userId === currentUser.id; }).length;
+        var confirmMsg = "Import " + sanitized.length + " record(s)? This will REPLACE your own " + ownRowCount + " existing record(s).";
+        if (isAdmin) confirmMsg += " (Other users' data is not affected.)";
+        if (!confirm(confirmMsg)) return;
+
+        var deleteResult = await supabaseClient.from(OUTREACH_TABLE).delete().eq("user_id", currentUser.id);
+        if (deleteResult.error) throw new Error(deleteResult.error.message);
+
+        if (sanitized.length > 0) {
+          var insertRows = sanitized.map(function (r) { return recordToInsertRow(r); });
+          var insertResult = await supabaseClient.from(OUTREACH_TABLE).insert(insertRows).select();
+          if (insertResult.error) throw new Error(insertResult.error.message);
+        }
+
+        await refreshRecords();
+        resetForm();
+        renderAll();
+        showToast("Import complete");
+      } catch (err) {
+        alert("Import failed: " + err.message);
+      } finally {
+        document.getElementById("importFileInput").value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("clearAllBtn").addEventListener("click", async function () {
+    var msg = isAdmin
+      ? "This will permanently delete all of YOUR OWN outreach records (not other users' data). Continue?"
+      : "This will permanently delete ALL of your outreach records. Continue?";
+    if (!confirm(msg)) return;
+    if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
+
+    var deleteResult = await supabaseClient.from(OUTREACH_TABLE).delete().eq("user_id", currentUser.id);
+    if (deleteResult.error) {
+      showToast("Clear failed: " + deleteResult.error.message);
+      return;
+    }
+
+    await refreshRecords();
+    resetForm();
+    renderAll();
+    showToast("Your outreach data has been cleared");
+  });
+
+  async function refreshRecords() {
+    state.records = await loadRecords();
+  }
+
+  /* ---------- MAIN RENDER ---------- */
+
+  function renderAll() {
+    renderRecordsTable();
+    renderDashboard();
+  }
+
+  /* ---------- INIT ---------- */
+
+  renderFollowupPreview();
+  customTemplates = loadCustomTemplates();
+
+  function renderAuthStrip() {
+    var strip = document.getElementById("authStrip");
+    var roleClass = isAdmin ? "role-badge admin" : "role-badge";
+    strip.innerHTML =
+      '<span>' + escapeHtml(currentUser.email) + '</span>' +
+      '<span class="' + roleClass + '">' + (isAdmin ? "Admin" : "Member") + '</span>' +
+      '<button type="button" id="logoutBtn">Log Out</button>';
+    document.getElementById("logoutBtn").addEventListener("click", async function () {
+      await supabaseClient.auth.signOut();
+      window.location.href = "login.html";
+    });
+  }
+
+  async function init() {
+    var sessionResult = await supabaseClient.auth.getSession();
+    var session = sessionResult.data && sessionResult.data.session;
+
+    if (!session) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    currentUser = session.user;
+
+    var profileResult = await supabaseClient.from("profiles").select("role").eq("id", currentUser.id).single();
+    if (profileResult.error) {
+      console.error("Failed to load profile", profileResult.error);
+    } else {
+      currentProfile = profileResult.data;
+      isAdmin = currentProfile && currentProfile.role === "admin";
+    }
+
+    renderAuthStrip();
+
+    if (isAdmin) {
+      document.querySelectorAll(".owner-col").forEach(function (el) { el.classList.remove("hidden"); });
+      document.getElementById("templatesSubtitle").textContent =
+        "5 built-in first-outreach templates + 1 follow-up template are available to you as admin. Add your own custom templates here too — they show up in the Send Email dropdown alongside the built-ins, and are saved on this browser only.";
+    } else {
+      document.getElementById("templatesSubtitle").textContent =
+        "Add your own custom templates here — they show up in the Send Email dropdown, and are saved on this browser only. A single Follow-up template is always available once a site has been contacted.";
+    }
+
+    senderAccounts = loadSenderAccounts();
+    renderSenderCount();
+
+    state.records = await loadRecords();
+
+    document.getElementById("mainContent").classList.remove("hidden");
+    renderAll();
+  }
+
+  init();
+
+})();
+</script>
+</body>
+</html>

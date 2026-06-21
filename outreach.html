@@ -1242,6 +1242,12 @@
     <option value="replied">Replied</option>
     <option value="closed">Closed</option>
   </select>
+  <select id="sortBy">
+    <option value="default">Sort: Date Added</option>
+    <option value="niche_az">Sort: Niche (A–Z)</option>
+    <option value="niche_za">Sort: Niche (Z–A)</option>
+    <option value="website_az">Sort: Website (A–Z)</option>
+  </select>
 </div>
 
 <!-- RECORDS TABLE -->
@@ -2193,12 +2199,29 @@
   function getFilteredRecords() {
     var search = document.getElementById("searchInput").value.trim().toLowerCase();
     var filterStatus = document.getElementById("filterStatus").value;
+    var sortBy = document.getElementById("sortBy").value;
 
-    return state.records.filter(function (r) {
+    var filtered = state.records.filter(function (r) {
       if (state.queueFilterActive && !isFollowupDueToday(r)) return false;
       if (filterStatus !== "all" && r.status !== filterStatus) return false;
       return recordMatchesSearch(r, search);
     });
+
+    if (sortBy === "niche_az" || sortBy === "niche_za") {
+      filtered = filtered.slice().sort(function (a, b) {
+        var nicheA = (a.niche || "Unassigned").toLowerCase();
+        var nicheB = (b.niche || "Unassigned").toLowerCase();
+        if (nicheA < nicheB) return sortBy === "niche_az" ? -1 : 1;
+        if (nicheA > nicheB) return sortBy === "niche_az" ? 1 : -1;
+        return 0;
+      });
+    } else if (sortBy === "website_az") {
+      filtered = filtered.slice().sort(function (a, b) {
+        return a.website.localeCompare(b.website);
+      });
+    }
+
+    return filtered;
   }
 
   /* ---------- DASHBOARD ---------- */
@@ -3036,6 +3059,7 @@
 
   document.getElementById("searchInput").addEventListener("input", renderAll);
   document.getElementById("filterStatus").addEventListener("change", renderAll);
+  document.getElementById("sortBy").addEventListener("change", renderAll);
 
   /* ---------- EXPORT / IMPORT ---------- */
 

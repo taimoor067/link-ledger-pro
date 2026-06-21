@@ -2,99 +2,114 @@
  * niche-detector.js
  * Lightweight keyword-based niche classifier for outreach link-building tools.
  *
+ * Always classifies into one of these 16 fixed categories (or "Unknown / General"
+ * if confidence is too low to commit to one):
+ *
+ *   SaaS / Software & Tech, Business & Finance, Marketing & SEO,
+ *   Health & Wellness, Lifestyle, Travel, Education, Real Estate,
+ *   Legal, Automotive, Food & Beverage, Fashion & Beauty,
+ *   Home Improvement, Parenting & Family, Sports, Gaming
+ *
  * Usage:
  *   const result = await detectNiche("https://benzinga.com");
- *   // result = { niche: "Finance & Investing", confidence: 0.82, scores: {...}, matched: [...] }
+ *   // result = { niche: "Business & Finance", confidence: 0.82, scores: {...}, matched: [...] }
  *
  * No external APIs required (besides fetching the target page itself).
- * Works in browser (fetch) — for cross-origin sites you'll likely need a
- * CORS proxy or to fetch server-side. See fetchPageText() below.
+ * Routed through a Netlify serverless function (see netlify/functions/fetch-page.js)
+ * to avoid CORS issues when fetching arbitrary external domains.
  */
 
 // ---------------------------------------------------------------------------
-// 1. Keyword dictionary — SHORT keywords only (1-2 words), weighted by
+// 1. Keyword dictionary — SHORT phrases only (2-4 words), weighted by
 //    specificity. Higher weight = more decisive signal for that niche.
+//    Generic single words are deliberately avoided since they cause
+//    false positives across unrelated categories (e.g. "drive", "plan").
 // ---------------------------------------------------------------------------
 const NICHE_KEYWORDS = {
-  "Hosting / Infrastructure": {
-    high: ["vps", "dedicated server", "cpanel", "uptime", "bandwidth", "ssl certificate", "nameserver", "cdn", "colocation", "managed hosting", "shared hosting"],
-    med: ["hosting", "server", "domain", "datacenter", "data center", "ddos", "migration"],
-    low: ["plan", "renew", "uptime guarantee"]
+  "SaaS / Software & Tech": {
+    high: ["api key", "free trial", "saas platform", "cloud-based software", "webhook integration", "sso login", "admin dashboard", "open-source platform", "white-label software", "self-hosted solution"],
+    med: ["software platform", "developer tools", "automation workflow", "no-code platform", "vps hosting", "cpanel access", "ssl certificate", "cdn network", "app development", "tech startup"],
+    low: ["tech company"]
   },
-  "SaaS / Software": {
-    high: ["api key", "free trial", "dashboard", "integration", "workspace", "saas", "subscription tier", "onboarding", "webhook", "sso"],
-    med: ["software", "platform", "automation", "workflow", "cloud-based", "no-code"],
-    low: ["pricing plan", "upgrade plan", "demo"]
+  "Business & Finance": {
+    high: ["stock price", "ticker symbol", "ipo filing", "dividend yield", "brokerage account", "market cap", "venture capital", "quarterly earnings", "business loan", "tax deduction"],
+    med: ["small business", "entrepreneurship tips", "financial planning", "accounting software", "b2b sales", "startup funding", "crypto exchange", "trading platform"],
+    low: ["business strategy"]
   },
-  "E-commerce / Retail": {
-    high: ["add to cart", "checkout", "free shipping", "sku", "return policy", "wishlist", "shopify", "storefront"],
-    med: ["shop now", "discount", "coupon", "order", "delivery", "retail"],
-    low: ["sale", "deal", "buy now"]
+  "Marketing & SEO": {
+    high: ["link building", "backlink profile", "domain authority", "serp ranking", "keyword research", "guest post", "ppc campaign", "conversion rate optimization"],
+    med: ["digital marketing", "content marketing", "social media strategy", "email marketing", "brand awareness", "seo agency"],
+    low: ["marketing tips"]
   },
-  "Finance & Investing": {
-    high: ["stock price", "ticker", "ipo", "etf", "portfolio", "dividend", "brokerage", "market cap", "nasdaq", "nyse", "crypto exchange", "trading platform"],
-    med: ["investing", "stocks", "trading", "earnings", "interest rate", "mutual fund", "hedge fund"],
-    low: ["finance", "market", "economy"]
+  "Health & Wellness": {
+    high: ["patient portal", "telehealth visit", "clinical trial", "workout plan", "personal trainer", "meal plan", "mental health support", "nutrition coaching"],
+    med: ["medical clinic", "fitness routine", "gym membership", "wellness program", "healthy recipes", "treatment plan"],
+    low: ["health tips"]
   },
-  "Insurance": {
-    high: ["get a quote", "premium", "policyholder", "deductible", "underwriting", "claims process"],
-    med: ["insurance", "coverage", "policy", "insurer"],
-    low: ["protect your"]
+  "Lifestyle": {
+    high: ["daily routine tips", "self-care ideas", "minimalist living", "life hacks"],
+    med: ["lifestyle blog", "personal essay", "home decor ideas", "online store", "add to cart", "free shipping"],
+    low: ["lifestyle tips"]
   },
-  "Legal Services": {
-    high: ["law firm", "attorney", "personal injury", "free consultation", "litigation", "case evaluation"],
-    med: ["lawyer", "legal advice", "lawsuit", "settlement"],
-    low: ["legal"]
+  "Travel": {
+    high: ["book a room", "flight booking", "travel itinerary", "hotel deal", "vacation package", "visa requirements"],
+    med: ["travel guide", "hotel booking", "beach resort", "backpacking tips"],
+    low: ["travel blog"]
   },
-  "Healthcare / Medical": {
-    high: ["patient portal", "telehealth", "diagnosis", "clinical trial", "appointment booking", "prescription"],
-    med: ["doctor", "clinic", "treatment", "symptoms", "healthcare"],
-    low: ["health", "wellness"]
+  "Education": {
+    high: ["enroll now", "course catalog", "certification program", "learning management system", "online degree", "scholarship application"],
+    med: ["online course", "video tutorial", "curriculum design", "student portal"],
+    low: ["education blog"]
   },
   "Real Estate": {
-    high: ["mls listing", "square footage", "mortgage rate", "property listing", "open house", "realtor"],
-    med: ["real estate", "for sale", "for rent", "listing", "home buying"],
-    low: ["property", "homes"]
+    high: ["mls listing", "square footage", "mortgage rate", "property listing", "open house", "realtor license"],
+    med: ["real estate agent", "homes for sale", "homes for rent", "home buying"],
+    low: ["real estate blog"]
   },
-  "Education / E-learning": {
-    high: ["enroll now", "course catalog", "certification program", "lms", "syllabus", "online degree"],
-    med: ["course", "tutorial", "curriculum", "e-learning", "student"],
-    low: ["learn", "education"]
-  },
-  "Travel / Hospitality": {
-    high: ["book a room", "flight booking", "itinerary", "check-in date", "hotel deal", "vacation package"],
-    med: ["travel", "hotel", "flight", "resort", "destination"],
-    low: ["trip", "vacation"]
-  },
-  "Marketing / SEO Agency": {
-    high: ["link building", "backlink", "domain authority", "serp ranking", "keyword research", "guest post"],
-    med: ["seo", "marketing agency", "ppc", "content marketing"],
-    low: ["marketing", "agency"]
-  },
-  "News / Media": {
-    high: ["breaking news", "subscribe to newsletter", "editorial team", "press release", "opinion column"],
-    med: ["news", "article", "journalist", "magazine"],
-    low: ["read more", "latest"]
-  },
-  "Food & Beverage": {
-    high: ["menu item", "reservation", "recipe card", "nutrition facts", "delivery app"],
-    med: ["recipe", "restaurant", "menu", "cuisine"],
-    low: ["food", "drink"]
-  },
-  "Fitness / Wellness": {
-    high: ["workout plan", "personal trainer", "membership pricing", "class schedule", "meal plan"],
-    med: ["gym", "fitness", "workout", "nutrition"],
-    low: ["health", "exercise"]
+  "Legal": {
+    high: ["law firm", "personal injury", "free consultation", "litigation process", "case evaluation", "legal services"],
+    med: ["attorney advice", "legal advice", "lawsuit settlement"],
+    low: ["legal blog"]
   },
   "Automotive": {
-    high: ["vin number", "trade-in value", "lease offer", "mpg rating", "dealership"],
-    med: ["car", "vehicle", "auto", "dealer"],
-    low: ["drive", "model"]
+    high: ["vin number", "trade-in value", "lease offer", "mpg rating", "car dealership", "test drive"],
+    med: ["vehicle inventory", "auto repair", "car dealer", "auto financing"],
+    low: ["car blog"]
+  },
+  "Food & Beverage": {
+    high: ["menu item", "table reservation", "recipe card", "nutrition facts", "food delivery app", "craft brewery"],
+    med: ["recipe ingredients", "restaurant menu", "cuisine style", "coffee shop"],
+    low: ["food blog"]
+  },
+  "Fashion & Beauty": {
+    high: ["skincare routine", "makeup tutorial", "fashion week", "beauty products", "cosmetic brand", "style guide"],
+    med: ["fashion trends", "beauty blog", "clothing brand", "haircare tips"],
+    low: ["fashion blog"]
+  },
+  "Home Improvement": {
+    high: ["diy project", "home renovation", "interior design ideas", "home remodeling", "kitchen remodel"],
+    med: ["home decor", "flooring options", "home improvement tips"],
+    low: ["home blog"]
+  },
+  "Parenting & Family": {
+    high: ["parenting tips", "baby gear", "toddler activities", "family vacation ideas", "pregnancy advice"],
+    med: ["parenting blog", "family life", "kids activities"],
+    low: ["family blog"]
+  },
+  "Sports": {
+    high: ["match highlights", "game schedule", "player stats", "championship game", "sports betting odds", "team roster"],
+    med: ["sports news", "fantasy league", "sports blog"],
+    low: ["sports update"]
+  },
+  "Gaming": {
+    high: ["video game review", "gameplay walkthrough", "esports tournament", "game release date", "in-game purchases"],
+    med: ["gaming news", "game guide", "console gaming"],
+    low: ["gaming blog"]
   }
 };
 
 // ---------------------------------------------------------------------------
-// 2. Fetch + extract visible text from a page
+// 2. Fetch + extract visible text from a page (via the Netlify proxy function)
 // ---------------------------------------------------------------------------
 async function fetchPageText(url) {
   // Routed through our Netlify function (netlify/functions/fetch-page.js)
@@ -130,7 +145,7 @@ function stripTags(str) {
 // ---------------------------------------------------------------------------
 // 3. Score text against the keyword dictionary
 // ---------------------------------------------------------------------------
-const WEIGHTS = { high: 5, med: 2, low: 1 };
+const WEIGHTS = { high: 6, med: 2, low: 0.5 };
 
 function scoreText(text) {
   const scores = {};
@@ -144,7 +159,7 @@ function scoreText(text) {
       const weight = WEIGHTS[tier];
       for (const kw of keywords) {
         // Word-boundary-safe count of occurrences (capped at 3 to avoid
-        // one repeated word dominating the score).
+        // one repeated phrase dominating the score).
         const count = Math.min(countOccurrences(text, kw), 3);
         if (count > 0) {
           score += count * weight;
@@ -183,6 +198,14 @@ async function detectNiche(url) {
   }
 
   const [topNiche, topScore] = sorted[0];
+
+  // Minimum score floor: a single low-tier hit (worth 0.5) or one stray
+  // med-tier hit (worth 2) isn't enough evidence to commit to a niche.
+  const MIN_SCORE_THRESHOLD = 4;
+  if (topScore < MIN_SCORE_THRESHOLD) {
+    return { niche: "Unknown / General", confidence: 0, scores: Object.fromEntries(sorted), matched: [] };
+  }
+
   const totalScore = sorted.reduce((sum, [, s]) => sum + s, 0);
   const confidence = Math.min(topScore / totalScore, 0.97); // never claim full certainty
 
@@ -202,9 +225,3 @@ if (typeof module !== "undefined" && module.exports) {
 } else {
   window.detectNiche = detectNiche;
 }
-
-// ---------------------------------------------------------------------------
-// Example:
-// detectNiche("https://benzinga.com").then(console.log);
-// → { niche: "Finance & Investing", confidence: 0.78, scores: {...}, matched: [...] }
-// ---------------------------------------------------------------------------

@@ -613,6 +613,49 @@
   .pill.status-replied { color: var(--good); border-color: #1f5c43; }
   .pill.status-closed { color: var(--text-dim); border-color: var(--border); }
 
+  .pill.niche-pill {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+    background: rgba(79,140,255,0.08);
+  }
+
+  /* NICHE DETECTION (form) */
+  .website-field-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .website-field-row input {
+    flex: 1;
+  }
+
+  #detectNicheBtn {
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  #nicheDetectResult {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  #nicheDetectResult.hidden { display: none; }
+
+  .niche-detect-status,
+  .niche-detect-confidence {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .niche-detect-error {
+    font-size: 12px;
+    color: var(--bad);
+  }
+
   /* ---------------------------------------------------------------------
      MOBILE CARD VIEW FOR THE RECORDS TABLE -- COLLAPSED BY DEFAULT
      Below 800px, each row renders as a compact card showing only
@@ -1085,7 +1128,11 @@
     <div class="form-grid">
       <div class="field">
         <label for="f_website">Website</label>
-        <input type="text" id="f_website" placeholder="example.com" required>
+        <div class="website-field-row">
+          <input type="text" id="f_website" placeholder="example.com" required>
+          <button type="button" id="detectNicheBtn">Detect Niche</button>
+        </div>
+        <div class="hidden" id="nicheDetectResult"></div>
       </div>
       <div class="field">
         <label for="f_contact">Contact</label>
@@ -1220,6 +1267,7 @@
           <th>First Email</th>
           <th>Follow-ups</th>
           <th>Status</th>
+          <th>Niche</th>
           <th>Notes</th>
           <th class="owner-col hidden">Owner</th>
           <th></th>
@@ -1394,6 +1442,7 @@
   </div>
 </div>
 
+<script src="niche-detector.js"></script>
 <script>
 (function () {
   "use strict";
@@ -1590,6 +1639,8 @@
       fu3Sent: row.fu3_sent || "",
       status: row.status,
       notes: row.notes || "",
+      niche: row.niche || "",
+      nicheConfidence: typeof row.niche_confidence === "number" ? row.niche_confidence : null,
       firstEmailSubject: row.first_email_subject || "",
       firstEmailSender: row.first_email_sender || "",
       userId: row.user_id,
@@ -1608,6 +1659,8 @@
       fu3_sent: record.fu3Sent || null,
       status: record.status,
       notes: record.notes || "",
+      niche: record.niche || null,
+      niche_confidence: (typeof record.nicheConfidence === "number") ? record.nicheConfidence : null,
       user_id: currentUser.id
     };
   }
@@ -1622,7 +1675,9 @@
       fu2_sent: record.fu2Sent || null,
       fu3_sent: record.fu3Sent || null,
       status: record.status,
-      notes: record.notes || ""
+      notes: record.notes || "",
+      niche: record.niche || null,
+      niche_confidence: (typeof record.nicheConfidence === "number") ? record.nicheConfidence : null
     };
   }
 
@@ -1783,7 +1838,7 @@
 
   /* ---------- DATA MODEL ---------- */
 
-  function buildRecordObject(id, website, contact, email, firstEmailDate, fu1Sent, fu2Sent, fu3Sent, status, notes) {
+  function buildRecordObject(id, website, contact, email, firstEmailDate, fu1Sent, fu2Sent, fu3Sent, status, notes, niche, nicheConfidence) {
     return {
       id: id,
       website: website,
@@ -1794,7 +1849,9 @@
       fu2Sent: fu2Sent || "",
       fu3Sent: fu3Sent || "",
       status: status,
-      notes: notes || ""
+      notes: notes || "",
+      niche: niche || "",
+      nicheConfidence: (typeof nicheConfidence === "number") ? nicheConfidence : null
     };
   }
 
@@ -1816,6 +1873,66 @@
 
   document.getElementById("f_firstEmailDate").addEventListener("input", renderFollowupPreview);
 
+  /* ---------- NICHE DETECTION (form) ---------- */
+
+  var formDetectedNiche = { niche: "", confidence: null };
+
+  async function runNicheDetectionForForm() {
+    var websiteInput = document.getElementById("f_website");
+    var btn = document.getElementById("detectNicheBtn");
+    var resultEl = document.getElementById("nicheDetectResult");
+
+    var rawSite = websiteInput.value.trim();
+    if (!rawSite) {
+      showToast("Enter a website first");
+      return;
+    }
+
+    var normalized = normalizeSiteName(rawSite);
+    var targetUrl = "https://" + normalized;
+
+    btn.disabled = true;
+    btn.textContent = "Detecting…";
+    resultEl.classList.remove("hidden");
+    resultEl.innerHTML = '<span class="niche-detect-status">Checking ' + escapeHtml(normalized) + '…</span>';
+
+    try {
+      var result = await window.detectNiche(targetUrl);
+      formDetectedNiche.niche = result.niche;
+      formDetectedNiche.confidence = result.confidence;
+
+      var pct = Math.round((result.confidence || 0) * 100);
+      resultEl.innerHTML =
+        '<span class="pill niche-pill">' + escapeHtml(result.niche) + '</span>' +
+        '<span class="niche-detect-confidence">' + pct + '% confidence</span>' +
+        '<button type="button" class="ghost small" id="clearNicheBtn">Clear</button>';
+
+      document.getElementById("clearNicheBtn").addEventListener("click", function () {
+        formDetectedNiche.niche = "";
+        formDetectedNiche.confidence = null;
+        resultEl.classList.add("hidden");
+        resultEl.innerHTML = "";
+      });
+    } catch (err) {
+      console.error("Niche detection failed", err);
+      resultEl.innerHTML = '<span class="niche-detect-error">Could not detect niche: ' + escapeHtml(err.message || "request failed") + '</span>';
+      formDetectedNiche.niche = "";
+      formDetectedNiche.confidence = null;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Detect Niche";
+    }
+  }
+
+  document.getElementById("detectNicheBtn").addEventListener("click", runNicheDetectionForForm);
+
+  function resetNicheDetectUI() {
+    formDetectedNiche = { niche: "", confidence: null };
+    var resultEl = document.getElementById("nicheDetectResult");
+    resultEl.classList.add("hidden");
+    resultEl.innerHTML = "";
+  }
+
   /* ---------- FORM: ADD / EDIT SUBMIT ---------- */
 
   function resetForm() {
@@ -1825,6 +1942,7 @@
     document.getElementById("submitBtn").textContent = "Add Record";
     document.getElementById("cancelEditBtn").classList.add("hidden");
     renderFollowupPreview();
+    resetNicheDetectUI();
   }
 
   function enterEditMode(record) {
@@ -1842,6 +1960,27 @@
     document.getElementById("submitBtn").textContent = "Save Changes";
     document.getElementById("cancelEditBtn").classList.remove("hidden");
     renderFollowupPreview();
+
+    var resultEl = document.getElementById("nicheDetectResult");
+    if (record.niche) {
+      formDetectedNiche.niche = record.niche;
+      formDetectedNiche.confidence = record.nicheConfidence;
+      var pct = Math.round((record.nicheConfidence || 0) * 100);
+      resultEl.classList.remove("hidden");
+      resultEl.innerHTML =
+        '<span class="pill niche-pill">' + escapeHtml(record.niche) + '</span>' +
+        '<span class="niche-detect-confidence">' + pct + '% confidence</span>' +
+        '<button type="button" class="ghost small" id="clearNicheBtn">Clear</button>';
+      document.getElementById("clearNicheBtn").addEventListener("click", function () {
+        formDetectedNiche.niche = "";
+        formDetectedNiche.confidence = null;
+        resultEl.classList.add("hidden");
+        resultEl.innerHTML = "";
+      });
+    } else {
+      resetNicheDetectUI();
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1878,7 +2017,7 @@
       if (state.editingId) {
         var existing = state.records.find(function (r) { return r.id === state.editingId; });
         if (!existing) { submitBtn.disabled = false; return; }
-        var updatedRecord = buildRecordObject(state.editingId, website, contact, email, firstEmailDate, fu1Sent, fu2Sent, fu3Sent, status, notes);
+        var updatedRecord = buildRecordObject(state.editingId, website, contact, email, firstEmailDate, fu1Sent, fu2Sent, fu3Sent, status, notes, formDetectedNiche.niche, formDetectedNiche.confidence);
         var updateResult = await supabaseClient
           .from(OUTREACH_TABLE)
           .update(recordToUpdateRow(updatedRecord))
@@ -1896,7 +2035,7 @@
         }
         showToast("Record updated");
       } else {
-        var draftRecord = { website: website, contact: contact, email: email, firstEmailDate: firstEmailDate, fu1Sent: fu1Sent, fu2Sent: fu2Sent, fu3Sent: fu3Sent, status: status, notes: notes };
+        var draftRecord = { website: website, contact: contact, email: email, firstEmailDate: firstEmailDate, fu1Sent: fu1Sent, fu2Sent: fu2Sent, fu3Sent: fu3Sent, status: status, notes: notes, niche: formDetectedNiche.niche, nicheConfidence: formDetectedNiche.confidence };
         var insertResult = await supabaseClient
           .from(OUTREACH_TABLE)
           .insert(recordToInsertRow(draftRecord))
@@ -2036,6 +2175,7 @@
     if ((record.contact || "").toLowerCase().indexOf(search) !== -1) return true;
     if ((record.email || "").toLowerCase().indexOf(search) !== -1) return true;
     if ((record.notes || "").toLowerCase().indexOf(search) !== -1) return true;
+    if ((record.niche || "").toLowerCase().indexOf(search) !== -1) return true;
     return false;
   }
 
@@ -2118,6 +2258,19 @@
     return html;
   }
 
+  function renderNicheCell(record) {
+    if (!record.niche) {
+      var canDetect = record.userId === currentUser.id;
+      if (canDetect) {
+        return '<button type="button" class="ghost small" data-action="detect-row-niche" data-id="' + record.id + '">Detect</button>';
+      }
+      return '<span class="fu-row">—</span>';
+    }
+    var pct = (typeof record.nicheConfidence === "number") ? Math.round(record.nicheConfidence * 100) : null;
+    return '<span class="pill niche-pill">' + escapeHtml(record.niche) + '</span>' +
+      (pct !== null ? '<div class="fu-row" style="margin-top:4px;">' + pct + '% confidence</div>' : '');
+  }
+
   function renderRecordsTable() {
     var tbody = document.getElementById("recordsTableBody");
     var records = getFilteredRecords();
@@ -2157,6 +2310,7 @@
             '<span class="mobile-summary-website">' + escapeHtml(r.website) + '</span>' +
             '<div class="mobile-summary-row">' +
               '<span class="pill status-' + r.status + '">' + escapeHtml(STATUS_LABELS[r.status] || r.status) + '</span>' +
+              (r.niche ? '<span class="pill niche-pill">' + escapeHtml(r.niche) + '</span>' : '') +
               (dueToday ? '<span class="mobile-due-badge">Due Today</span>' : '') +
             '</div>' +
           '</div>' +
@@ -2170,6 +2324,7 @@
         '<td class="mobile-detail-cell" data-label="First Email">' + firstEmailCellHtml + '</td>' +
         '<td class="mobile-detail-cell" data-label="Follow-ups"><div class="fu-dates-cell">' + renderFollowupDatesCell(r) + '</div></td>' +
         '<td class="mobile-detail-cell" data-label="Status"><span class="pill status-' + r.status + '">' + escapeHtml(STATUS_LABELS[r.status] || r.status) + '</span></td>' +
+        '<td class="mobile-detail-cell" data-label="Niche">' + renderNicheCell(r) + '</td>' +
         '<td class="mobile-detail-cell" data-label="Notes"><div class="notes-cell">' + (r.notes ? escapeHtml(r.notes) : "—") + '</div></td>' +
         ownerCell +
         '<td class="mobile-detail-cell"><div class="row-actions">' +
@@ -2182,6 +2337,38 @@
     });
 
     wireRowActions(tbody);
+  }
+
+  async function detectNicheForRow(recordId) {
+    var record = state.records.find(function (r) { return r.id === recordId; });
+    if (!record) return;
+
+    var normalized = normalizeSiteName(record.website);
+    var targetUrl = "https://" + normalized;
+
+    showToast("Detecting niche for " + normalized + "…");
+
+    try {
+      var result = await window.detectNiche(targetUrl);
+
+      var updateResult = await supabaseClient
+        .from(OUTREACH_TABLE)
+        .update({ niche: result.niche, niche_confidence: result.confidence })
+        .eq("id", recordId);
+
+      if (updateResult.error) {
+        showToast("Saved niche failed: " + updateResult.error.message);
+        return;
+      }
+
+      record.niche = result.niche;
+      record.nicheConfidence = result.confidence;
+      renderAll();
+      showToast("Niche detected: " + result.niche);
+    } catch (err) {
+      console.error("Niche detection failed", err);
+      showToast("Could not detect niche: " + (err.message || "request failed"));
+    }
   }
 
   function wireRowActions(tbody) {
@@ -2211,6 +2398,11 @@
         var id = btn.getAttribute("data-id");
         var fu = Number(btn.getAttribute("data-fu"));
         markFollowupSent(id, fu);
+      });
+    });
+    tbody.querySelectorAll('button[data-action="detect-row-niche"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        detectNicheForRow(btn.getAttribute("data-id"));
       });
     });
     // Mobile-only summary cell: tap to expand/collapse the row's details.
@@ -2885,7 +3077,9 @@
           var fu3Sent = typeof item.fu3Sent === "string" ? item.fu3Sent : "";
           var status = validStatuses.indexOf(item.status) !== -1 ? item.status : "not_contacted";
           var notes = typeof item.notes === "string" ? item.notes : "";
-          return { website: website, contact: contact, email: email, firstEmailDate: firstEmailDate, fu1Sent: fu1Sent, fu2Sent: fu2Sent, fu3Sent: fu3Sent, status: status, notes: notes };
+          var niche = typeof item.niche === "string" ? item.niche : "";
+          var nicheConfidence = typeof item.nicheConfidence === "number" ? item.nicheConfidence : null;
+          return { website: website, contact: contact, email: email, firstEmailDate: firstEmailDate, fu1Sent: fu1Sent, fu2Sent: fu2Sent, fu3Sent: fu3Sent, status: status, notes: notes, niche: niche, nicheConfidence: nicheConfidence };
         }).filter(function (r) { return r.website.length > 0; });
 
         var ownRowCount = state.records.filter(function (r) { return r.userId === currentUser.id; }).length;
